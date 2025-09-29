@@ -44,7 +44,7 @@
     .death { color: #f0f; }
     #controls {
       display: grid;
-      grid-template-columns: repeat(3, 80px); /* Increased size for mobile */
+      grid-template-columns: repeat(3, 80px);
       grid-template-rows: repeat(3, 80px);
       gap: 5px;
       margin: 0 auto;
@@ -54,7 +54,7 @@
       background: #001100;
       border: 2px solid #0f0;
       color: #0f0;
-      font-size: 28px; /* Increased size for mobile */
+      font-size: 28px;
       font-weight: bold;
       cursor: pointer;
       user-select: none;
@@ -82,7 +82,7 @@
     }
     .control-btn.center[data-dir="wait"] {
       cursor: pointer;
-      background: #001100; /* Make wait button look active */
+      background: #001100;
       border-color: #0f0;
     }
     .control-btn.center[data-dir="wait"]:hover {
@@ -100,7 +100,7 @@
       border: 2px solid #0f0;
       color: #0f0;
       font-family: 'Courier New', monospace;
-      font-size: 16px; /* Increased size for mobile */
+      font-size: 16px;
       padding: 10px;
       cursor: pointer;
       user-select: none;
@@ -327,7 +327,6 @@
           connectRooms(rooms[bestI], rooms[bestJ], tiles);
           connected.add(bestJ);
         } else {
-          // Should not happen with current logic, but as a safeguard
           break;
         }
       }
@@ -629,6 +628,7 @@
       }
     }
     
+    // MODIFIED: Returns 'attack' if combat occurred, true if moved, false otherwise
     function moveEntity(entity, dx, dy) {
       let newX = entity.x + dx;
       let newY = entity.y + dy;
@@ -646,7 +646,8 @@
           if (attack(player, monster)) {
             updateStats();
           }
-          return false;
+          // NEW LOGIC: Signal that an attack occurred, preventing movement but consuming a turn.
+          return 'attack'; 
         }
         let item = items.find(i => i.x === newX && i.y === newY);
         if (item) {
@@ -701,7 +702,7 @@
             player.y = newPos.y;
             log('You triggered a teleport trap! You are whisked away!', 'pickup');
             updateStats();
-            // Don't remove the trap yet, let the player move
+            // Allow turn to proceed
             return true; 
           } else if (trap.poison) {
             player.poisonTurns = trap.poison;
@@ -860,16 +861,19 @@
       return true;
     }
 
+    // MODIFIED: Check for 'attack' result to consume turn
     function handleMove(dx, dy) {
+      const moveResult = moveEntity(player, dx, dy);
+      
       if (dx !== 0 || dy !== 0) {
-        if (moveEntity(player, dx, dy)) {
+        if (moveResult === true || moveResult === 'attack') {
           handleTurnEnd();
         } else {
-          // Attacking or bumping into wall doesn't consume turn in this model
+          // Failed to move (hit a wall or couldn't pick up) - no turn spent
           gameLoop(); 
         }
       } else {
-        // Wait action
+        // Wait action (dx=0, dy=0) always consumes a turn
         log("You wait a turn.", 'pickup');
         handleTurnEnd();
       }
