@@ -1,3 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nethack Roguelike</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #000;
+      color: #0f0;
+      font-family: 'courier new', monospace;
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+    }
+    #game-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    canvas {
+      border: 2px solid #0f0;
+      background: #000;
+      image-rendering: pixelated;
+    }
+    #stats {
+      padding: 10px;
+      border: 2px solid #0f0;
+      background: #001100;
+    }
+    #log {
+      padding: 10px;
+      border: 2px solid #0f0;
+      background: #001100;
+      height: 150px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+    .log-entry { margin: 2px 0; }
+    .damage { color: #f00; }
+    .pickup { color: #ff0; }
+    .death { color: #f0f; }
+    #controls {
+      display: grid;
+      grid-template-columns: repeat(3, 80px);
+      grid-template-rows: repeat(3, 80px);
+      gap: 5px;
+      margin: 0 auto;
+      width: fit-content;
+    }
+    .control-btn {
+      background: #001100;
+      border: 2px solid #0f0;
+      color: #0f0;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+    .control-btn:hover {
+      background: #002200;
+      border-color: #0ff;
+    }
+    .control-btn:active {
+      background: #006600;
+      transform: scale(0.95);
+    }
+    .control-btn.center {
+      background: #000;
+      cursor: default;
+      border-color: #050;
+    }
+    .control-btn.center:hover {
+      background: #000;
+      border-color: #050;
+    }
+    .control-btn.center[data-dir="wait"] {
+      cursor: pointer;
+      background: #001100;
+      border-color: #0f0;
+    }
+    .control-btn.center[data-dir="wait"]:hover {
+      background: #002200;
+      border-color: #0ff;
+    }
+    #inventory-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    .inventory-btn {
+      background: #001100;
+      border: 2px solid #0f0;
+      color: #0f0;
+      font-family: 'courier new', monospace;
+      font-size: 16px;
+      padding: 10px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      min-width: 100px;
+      text-align: center;
+    }
+    .inventory-btn:hover {
+      background: #002200;
+      border-color: #0ff;
+    }
+    .inventory-btn:active {
+      background: #006600;
+      transform: scale(0.95);
+    }
+    #restart-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #restart-modal.show {
+      display: flex;
+    }
+    .modal-content {
+      background: #001100;
+      border: 3px solid #f00;
+      padding: 30px;
+      text-align: center;
+      max-width: 400px;
+    }
+    .modal-content h2 {
+      color: #f00;
+      margin: 0 0 20px 0;
+      font-size: 32px;
+    }
+    .modal-stats {
+      margin: 20px 0;
+      color: #0f0;
+      font-size: 16px;
+      line-height: 1.8;
+    }
+    #restart-btn {
+      background: #002200;
+      border: 2px solid #0f0;
+      color: #0f0;
+      padding: 12px 30px;
+      font-size: 18px;
+      font-family: 'courier new', monospace;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    #restart-btn:hover {
+      background: #006600;
+      border-color: #0ff;
+    }
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+        flex-direction: column;
+        align-items: center;
+      }
+      canvas {
+        width: 100%;
+        height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="nethack" width="640" height="480"></canvas>
+    <div id="stats">
+      <div>HP: <span id="hp">20/20</span> | Level: <span id="level">1</span> | XP: <span id="xp">0</span> | Depth: <span id="depth">1</span></div>
+      <div>Weapon: <span id="weapon">Fists</span> | Gold: <span id="gold">0</span> | Status: <span id="status">Normal</span></div>
+    </div>
+    <div id="inventory" style="padding: 10px; border: 2px solid #0f0; background: #001100; max-height: 150px; overflow-y: auto; font-size: 12px;">
+      <div>Inventory (Tap or keys 1-5 to use):</div>
+      <div id="inventory-list"></div>
+    </div>
+    <div id="controls">
+      <button class="control-btn" data-dir="nw" aria-label="Move Northwest">↖</button>
+      <button class="control-btn" data-dir="n" aria-label="Move North">↑</button>
+      <button class="control-btn" data-dir="ne" aria-label="Move Northeast">↗</button>
+      <button class="control-btn" data-dir="w" aria-label="Move West">←</button>
+      <button class="control-btn center" data-dir="wait" aria-label="Wait">•</button>
+      <button class="control-btn" data-dir="e" aria-label="Move East">→</button>
+      <button class="control-btn" data-dir="sw" aria-label="Move Southwest">↙</button>
+      <button class="control-btn" data-dir="s" aria-label="Move South">↓</button>
+      <button class="control-btn" data-dir="se" aria-label="Move Southeast">↘</button>
+    </div>
+    <div id="log" aria-live="polite">
+      <div class="log-entry">Welcome to NetHack! Use arrow keys, buttons, or Space to wait. Bump into monsters to attack.</div>
+    </div>
+  </div>
+  <div id="restart-modal">
+    <div class="modal-content">
+      <h2>You Died</h2>
+      <div class="modal-stats">
+        <div>Final Level: <span id="final-level">1</span></div>
+        <div>Gold Collected: <span id="final-gold">0</span></div>
+        <div>Monsters Slain: <span id="final-kills">0</span></div>
+        <div>Turns Survived: <span id="final-turns">0</span></div>
+      </div>
+      <button id="restart-btn" aria-label="Restart game">Play Again</button>
+    </div>
+  </div>
 <script>
     const canvas = document.getElementById("nethack");
     const ctx = canvas.getContext("2d");
@@ -19,7 +235,7 @@
       inventorySize: 5, // Max unique item types
       inventoryMaxItems: 20, // Max total items (including stacks)
       poisonTurns: 0,
-      accuracy: 70 // Player's base hit chance (%)
+      hitChance: 70 // Player's base hit chance (%)
     };
     
     let dungeon = { tiles: [], width: WIDTH, height: HEIGHT, rooms: [] };
@@ -382,7 +598,7 @@
         ? (player.weapon ? player.weapon.damage : 2)
         : attacker.damage;
       // Hit/miss check
-      let hitChance = attacker === player ? player.accuracy : attacker.hitChance;
+      let hitChance = attacker === player ? player.hitChance : attacker.hitChance;
       if (Math.random() * 100 > hitChance) {
         log(attacker === player ? 'You miss!' : `The ${attacker.name} misses!`, 'damage');
         return false;
@@ -426,7 +642,7 @@
         player.level++;
         player.maxHp += 5;
         player.hp = player.maxHp;
-        player.accuracy += 5; // Improve accuracy with level
+        player.hitChance += 5; // Improve hitChance with level
         log(`Level up! You are now level ${player.level}!`, 'pickup');
         needed = player.level * 20; // Recalculate needed XP
         updateStats();
@@ -457,7 +673,7 @@
             log(`You descend to level ${dungeonLevel + 1}!`, 'pickup');
             dungeonLevel++;
             initGame(); // New level starts, player doesn't complete turn
-            return false;
+            return true; // Stairs taken, counts as a successful turn action
           }
           if (item.value !== undefined) {
             player.gold += item.value;
@@ -477,12 +693,12 @@
                 log(`You picked up a ${item.name}!`, 'pickup');
               } else {
                 log('Your inventory has too many item types!', 'damage');
-                return false;
+                return false; // Inventory full, player stays, doesn't move
               }
               items = items.filter(i => i !== item);
             } else {
               log('Your inventory is full!', 'damage');
-              return false;
+              return false; // Inventory full, player stays, doesn't move
             }
           }
           updateStats();
@@ -497,7 +713,7 @@
             if (player.hp <= 0) {
               log('You died!', 'death');
               setTimeout(showDeathScreen, 500);
-              return false;
+              return true; // Death consumes turn
             }
           } else if (trap.teleport) {
             let newPos = findSafeWalkable();
@@ -514,13 +730,14 @@
             if (player.hp <= 0) {
               log('You died from poison!', 'death');
               setTimeout(showDeathScreen, 500);
-              return false;
+              return true; // Death consumes turn
             }
             traps = traps.filter(t => t !== trap); // Remove trap after use
             updateStats();
           }
           traps = traps.filter(t => t !== trap);
           updateStats();
+          return true; // Trap trigger consumes turn
         }
       } else { // Monster-specific checks
         // Monsters should not move onto items or non-teleport traps
@@ -534,7 +751,7 @@
             entity.y = newPos.y;
             log(`The ${entity.name} triggered a teleport trap and vanished!`, 'pickup');
             traps = traps.filter(t => t !== trap);
-            return false; // Monster already moved (teleported), so no further movement needed this turn
+            return true; // Monster teleported, turn consumed for monster
           } else {
              // Monster hits a non-teleport trap (like spike/poison), stops movement (doesn't trigger for simplicity)
              return false;
@@ -545,7 +762,7 @@
       // Final movement
       entity.x = newX;
       entity.y = newY;
-      return true;
+      return true; // Successful movement consumes turn
     }
     
     // Pathfinding logic remains sound for finding the path to the target tile
@@ -643,7 +860,7 @@
             // Attempt to move
             if (!moveEntity(monster, dx, dy)) {
               // This means the chosen path step (next) was blocked.
-              // Note: moveEntity handles a teleport trap and returns false.
+              // Note: moveEntity handles a teleport trap and returns true, so this 'blocked' message is for other reasons.
               log(`The ${monster.name} tries to move but is blocked!`, 'damage');
             }
           } else {
@@ -695,60 +912,68 @@
         if (player.hp <= 0) {
           log('You died from poison!', 'death');
           setTimeout(showDeathScreen, 500);
-          return false;
+          return; // Player died, stop turn processing
         }
         updateStats();
       }
 
       moveMonsters();
       // Check for death again after monster movement
-      if (player.hp <= 0) return false;
+      if (player.hp <= 0) return; // Player died during monster turn, stop further processing
 
       updateStats();
       gameLoop();
-      return true;
     }
 
     /**
-     * Modified: Simplified logic to always call handleTurnEnd if an action 
-     * (move, attack, wait, or trap trigger) was attempted.
+     * Modified: Logic refined to only call handleTurnEnd if a turn-consuming action occurs.
+     * Actions that consume a turn: attacking a monster, moving to a new tile (including picking up items),
+     * taking stairs, triggering a trap, or waiting.
+     * Actions that do NOT consume a turn: trying to move into a wall, trying to pick up item with full inventory.
      */
     function handleMove(dx, dy) {
-      if (player.hp <= 0) return;
+      if (player.hp <= 0) return; // Can't move if dead
+
+      let turnConsumed = false;
 
       if (dx === 0 && dy === 0) {
         log("You wait a turn.", 'pickup');
-        handleTurnEnd();
-        return;
-      }
+        turnConsumed = true; // Waiting always consumes a turn
+      } else {
+        const newX = player.x + dx;
+        const newY = player.y + dy;
+        const monsterAtTarget = monsters.find(m => m.x === newX && m.y === newY);
 
-      const newX = player.x + dx;
-      const newY = player.y + dy;
-      const monsterAtTarget = monsters.find(m => m.x === newX && m.y === newY);
-
-      if (monsterAtTarget) {
-        // Player attacks monster. moveEntity handles the attack and returns false (no movement)
-        attack(player, monsterAtTarget);
-        handleTurnEnd(); 
-        return;
+        if (monsterAtTarget) {
+          // Player attacks monster. This consumes a turn.
+          attack(player, monsterAtTarget);
+          turnConsumed = true;
+        } else {
+          // Attempt movement (may pick up item/trigger trap/take stairs)
+          // moveEntity returns true if the player successfully moves or interacts with a turn-consuming element (trap, stairs, item pickup).
+          // It returns false if movement is blocked (wall, full inventory).
+          if (moveEntity(player, dx, dy)) {
+            turnConsumed = true;
+          }
+          // Note: If initGame() is called within moveEntity (for stairs),
+          // the current game state is reset, and a new turn sequence effectively begins.
+          // In this case, `turnConsumed` might be true, but handleTurnEnd won't be called for the *previous* turn.
+          // This is acceptable behavior for transitioning levels.
+        }
       }
       
-      // Attempt movement (may pick up item/trigger trap/take stairs)
-      // Note: moveEntity returns false if it results in a non-turn consuming action 
-      // (like running into a wall) OR a turn-consuming level change.
-      if (moveEntity(player, dx, dy)) {
-        // Movement was successful (or a teleport trap was triggered) - turn consumed
+      if (turnConsumed && player.hp > 0) { // Only end turn if action occurred AND player is still alive
         handleTurnEnd();
-      } else {
-        // Movement failed (hit a wall, or took stairs/died from a trap, or full inventory)
-        // If stairs/death, handleTurnEnd isn't called, which is correct.
-        // If wall/full inventory, the turn is NOT consumed, so we just redraw.
+      } else if (!turnConsumed) {
+        // If no turn was consumed (e.g., hit a wall), just redraw to update UI if needed.
         gameLoop(); 
       }
     }
     
     document.addEventListener("keydown", e => {
       let dx = 0, dy = 0;
+      let handled = true; // Assume event is handled unless explicitly not
+
       if (e.key === "ArrowUp" || e.key === 'k') dy = -1;
       else if (e.key === "ArrowDown" || e.key === 'j') dy = 1;
       else if (e.key === "ArrowLeft" || e.key === 'h') dx = -1;
@@ -758,27 +983,35 @@
       else if (e.key === 'b') { dx = -1; dy = 1; }
       else if (e.key === 'n') { dx = 1; dy = 1; }
       else if (e.key === ' ' || e.key === '.') {
-        e.preventDefault();
         handleMove(0, 0); // Wait action
-        return;
       }
-      if (e.key >= '1' && e.key <= '5') {
-        e.preventDefault();
+      else if (e.key >= '1' && e.key <= '5') {
         const index = parseInt(e.key) - 1;
         if (player.inventory[index]) {
           useItem(index);
+        } else {
+          handled = false; // No item at this index, don't prevent default
         }
-        return;
       }
-      if (dx !== 0 || dy !== 0) {
-        e.preventDefault();
-        handleMove(dx, dy);
+      else {
+        handled = false; // Not a recognized game input
+      }
+
+      if (handled) {
+        e.preventDefault(); // Prevent browser default behavior for game keys
+        if (dx !== 0 || dy !== 0) { // Only call handleMove if a directional input
+          handleMove(dx, dy);
+        }
       }
     });
     
     document.querySelectorAll('.control-btn[data-dir]').forEach(btn => {
-      const handleInput = (e) => {
+      const handleClick = (e) => {
         e.preventDefault();
+        // Simple visual feedback for button press
+        btn.style.background = '#006600';
+        setTimeout(() => { btn.style.background = '#001100'; }, 200);
+        
         const dir = btn.dataset.dir;
         let dx = 0, dy = 0;
         if (dir === 'wait') {
@@ -794,10 +1027,10 @@
       // Use a custom property to store the handler for later removal
       btn.removeEventListener('click', btn._clickHandler);
       btn.removeEventListener('touchstart', btn._touchHandler);
-      btn._clickHandler = handleInput;
-      btn._touchHandler = handleInput;
-      btn.addEventListener('click', handleInput);
-      btn.addEventListener('touchstart', handleInput, { passive: false });
+      btn._clickHandler = handleClick;
+      btn._touchHandler = handleClick; // For touch events, treat as click for simplicity
+      btn.addEventListener('click', handleClick);
+      btn.addEventListener('touchstart', handleClick, { passive: false });
     });
     
     document.getElementById('restart-btn').addEventListener('click', restartGame);
@@ -805,3 +1038,5 @@
     // Start the game
     initGame(true); // Start as a full restart
   </script>
+</body>
+</html>
