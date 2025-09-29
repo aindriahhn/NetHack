@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NetHack Roguelike</title>
   <style>
-    /* Unchanged CSS from previous response */
     body {
       margin: 0;
       padding: 10px;
@@ -426,9 +425,9 @@
       items = [];
       let pos = findWalkable();
       items.push({ ...pos, glyph: '>', color: '#fff', name: 'stairs', isStairs: true });
-      const spawnableItems = ITEM_TYPES.filter(item => !item.isStairs); // Exclude stairs
+      const spawnableItems = ITEM_TYPES.filter(item => !item.isStairs);
       for (let i = 0; i < count; i++) {
-        let type = spawnableItems[Math.floor(Math.random() * spawnableItems.length)]; // Select from dagger, sword, axe, gold, potion
+        let type = spawnableItems[Math.floor(Math.random() * spawnableItems.length)];
         pos = findWalkable();
         let item = { ...pos, glyph: type.glyph, color: type.color, name: type.name };
         if (type.damage) item.damage = type.damage;
