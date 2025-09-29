@@ -827,9 +827,11 @@
       return [];
     }
 
-    /** * Modified: Ensures monster attack takes priority over movement, 
+    /**
+     * Modified: Ensures monster attack takes priority over movement,
      * which was the core bug for monster-player interaction.
-     * Refined: More specific logging for monster movement failures.
+     * Refined: More specific logging for monster movement failures,
+     * and only logs messages for monsters within a certain distance of the player.
      */
     function moveMonsters() {
       // Sort monsters by distance to player to ensure nearby monsters move/attack first
@@ -839,11 +841,19 @@
         return distA - distB;
       });
 
+      const LOGGING_DISTANCE_THRESHOLD = 10; // Only log for monsters within 10 tiles of the player
+      let logsThisTurn = 0;
+      const MAX_LOGS_PER_TURN = 3;
+
       for (let i = 0; i < monsters.length; i++) {
         let monster = monsters[i];
         
         // Check if player died on a previous monster's turn
         if (player.hp <= 0) return; 
+
+        // Calculate distance for logging
+        const monsterPlayerDistance = Math.hypot(monster.x - player.x, monster.y - player.y);
+        const shouldLog = monsterPlayerDistance <= LOGGING_DISTANCE_THRESHOLD && logsThisTurn < MAX_LOGS_PER_TURN;
 
         // 1. Check for adjacent attack
         if (Math.abs(player.x - monster.x) <= 1 && Math.abs(player.y - monster.y) <= 1) {
@@ -860,12 +870,17 @@
             // Attempt to move
             if (!moveEntity(monster, dx, dy)) {
               // This means the chosen path step (next) was blocked.
-              // Note: moveEntity handles a teleport trap and returns true, so this 'blocked' message is for other reasons.
-              log(`The ${monster.name} tries to move but is blocked!`, 'damage');
+              if (shouldLog) {
+                log(`The ${monster.name} tries to move but is blocked!`, 'damage');
+                logsThisTurn++;
+              }
             }
           } else {
             // No path found at all (e.g., player is inaccessible)
-            log(`The ${monster.name} cannot find a path to you!`, 'damage');
+            if (shouldLog) {
+              log(`The ${monster.name} cannot find a path to you!`, 'damage');
+              logsThisTurn++;
+            }
           }
         }
       }
@@ -914,12 +929,15 @@
           setTimeout(showDeathScreen, 500);
           return; // Player died, stop turn processing
         }
-        updateStats();
       }
 
       moveMonsters();
       // Check for death again after monster movement
-      if (player.hp <= 0) return; // Player died during monster turn, stop further processing
+      if (player.hp <= 0) {
+        log('You died!', 'death');
+        setTimeout(showDeathScreen, 500);
+        return; // Player died during monster turn, stop further processing
+      }
 
       updateStats();
       gameLoop();
@@ -969,7 +987,7 @@
         gameLoop(); 
       }
     }
-    
+
     document.addEventListener("keydown", e => {
       let dx = 0, dy = 0;
       let handled = true; // Assume event is handled unless explicitly not
@@ -1004,7 +1022,7 @@
         }
       }
     });
-    
+
     document.querySelectorAll('.control-btn[data-dir]').forEach(btn => {
       const handleClick = (e) => {
         e.preventDefault();
@@ -1032,9 +1050,9 @@
       btn.addEventListener('click', handleClick);
       btn.addEventListener('touchstart', handleClick, { passive: false });
     });
-    
+
     document.getElementById('restart-btn').addEventListener('click', restartGame);
-    
+
     // Start the game
     initGame(true); // Start as a full restart
   </script>
