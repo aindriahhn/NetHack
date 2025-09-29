@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetHack Roguelike</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 10px;
+      background: #000;
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      justify-content: center;
+    }
+    #game-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 100%;
+    }
+    canvas {
+      border: 2px solid #0f0;
+      background: #000;
+      image-rendering: pixelated;
+    }
+    #stats, #inventory, #log {
+      padding: 10px;
+      border: 2px solid #0f0;
+      background: #001100;
+      font-size: 12px;
+    }
+    #log {
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .log-entry { margin: 2px 0; }
+    .damage { color: #f00; }
+    .pickup { color: #ff0; }
+    .death { color: #f0f; }
+    #inventory {
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    #inventory-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    .inventory-btn {
+      background: #001100;
+      border: 2px solid #0f0;
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 6px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .inventory-btn:hover {
+      background: #002200;
+      border-color: #0ff;
+    }
+    #controls {
+      display: grid;
+      grid-template-columns: repeat(3, 50px);
+      grid-template-rows: repeat(3, 50px);
+      gap: 5px;
+      margin: 0 auto;
+      width: fit-content;
+    }
+    .control-btn {
+      background: #001100;
+      border: 2px solid #0f0;
+      color: #0f0;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+    .control-btn:hover {
+      background: #002200;
+      border-color: #0ff;
+    }
+    .control-btn:active {
+      background: #003300;
+    }
+    #toggle-action {
+      background: #002200;
+      border: 2px solid #0f0;
+      color: #0f0;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      margin: 10px auto;
+      width: fit-content;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    #toggle-action:hover, #toggle-action:active {
+      background: #003300;
+      border-color: #0ff;
+      color: #0ff;
+    }
+    #restart-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #restart-modal.show {
+      display: flex;
+    }
+    .modal-content {
+      background: #001100;
+      border: 3px solid #f00;
+      padding: 20px;
+      text-align: center;
+      max-width: 90%;
+      width: 300px;
+    }
+    .modal-content h2 {
+      color: #f00;
+      margin: 0 0 15px 0;
+      font-size: 24px;
+    }
+    .modal-stats {
+      margin: 15px 0;
+      color: #0f0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    #restart-btn {
+      background: #002200;
+      border: 2px solid #0f0;
+      color: #0f0;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+    }
+    #restart-btn:hover {
+      background: #003300;
+    }
+    @media (max-width: 768px) {
+      body { padding: 5px; }
+      #game-container { flex-direction: column; align-items: center; }
+      canvas { width: 100%; max-width: 100%; height: auto; }
+      #stats, #inventory, #log { width: 100%; max-width: 100%; font-size: 10px; }
+      #controls { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 3px; }
+      .control-btn { font-size: 16px; }
+      .inventory-btn { font-size: 10px; padding: 4px; }
+      #toggle-action { font-size: 12px; padding: 8px 16px; }
+      #log { max-height: 100px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="nethack" width="640" height="480"></canvas>
+    <div id="stats">
+      <div>HP: <span id="hp">20/20</span> | Lvl: <span id="level">1</span> | XP: <span id="xp">0</span> | Depth: <span id="depth">1</span></div>
+      <div>Weapon: <span id="weapon">Fists</span> | Gold: <span id="gold">0</span> | <span id="status">Normal</span></div>
+    </div>
+    <div id="inventory">
+      <div>Inventory (1-5 use | 'd' + 1-5 drop):</div>
+      <div id="inventory-list"></div>
+    </div>
+    <div id="controls">
+      <button class="control-btn" data-dir="nw">↖</button>
+      <button class="control-btn" data-dir="n">↑</button>
+      <button class="control-btn" data-dir="ne">↗</button>
+      <button class="control-btn" data-dir="w">←</button>
+      <button class="control-btn" data-dir="wait">•</button>
+      <button class="control-btn" data-dir="e">→</button>
+      <button class="control-btn" data-dir="sw">↙</button>
+      <button class="control-btn" data-dir="s">↓</button>
+      <button class="control-btn" data-dir="se">↘</button>
+    </div>
+    <button id="toggle-action">Drop Mode (Off)</button>
+    <div id="log">
+      <div class="log-entry">Welcome! Arrow keys move, Space waits. Find stairs (>) to descend!</div>
+    </div>
+  </div>
+  <div id="restart-modal">
+    <div class="modal-content">
+      <h2>You Died</h2>
+      <div class="modal-stats">
+        <div>Final Level: <span id="final-level">1</span></div>
+        <div>Gold: <span id="final-gold">0</span></div>
+        <div>Kills: <span id="final-kills">0</span></div>
+        <div>Turns: <span id="final-turns">0</span></div>
+      </div>
+      <button id="restart-btn">Play Again</button>
+    </div>
+  </div>
+  <script>
+    const canvas = document.getElementById("nethack");
+    const ctx = canvas.getContext("2d");
+    let TILE_SIZE = 16;
+    const WIDTH = 40;
+    const HEIGHT = 30;
+    let player = {
+      x: 0, y: 0, glyph: '@', color: '#fff',
+      hp: 20, maxHp: 20, level: 1, xp: 0,
+      weapon: null, gold: 0, inventory: [],
+      inventorySize: 5, inventoryMaxItems: 20,
+      poisonTurns: 0, hitChance: 70
+    };
+    let dungeon = { tiles: [], width: WIDTH, height: HEIGHT, rooms: [] };
+    let monsters = [];
+    let items = [];
+    let traps = [];
+    let turn = 0;
+    let kills = 0;
+    let dungeonLevel = 1;
+    let itemAction = 'use';
+    let visible = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
+    let explored = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
+    const MONSTER_TYPES = [
+      { glyph: 'g', name: 'goblin', color: '#0a0', hp: 4, damage: 1, xp: 5, defense: 5, hitChance: 75 },
+      { glyph: 'o', name: 'orc', color: '#f80', hp: 6, damage: 2, xp: 10, defense: 10, hitChance: 80 },
+      { glyph: 'T', name: 'troll', color: '#0f0', hp: 12, damage: 4, xp: 20
