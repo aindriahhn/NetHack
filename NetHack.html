@@ -224,7 +224,7 @@
       <button id="restart-btn" aria-label="Restart game">Play Again</button>
     </div>
   </div>
-  <script>
+<script>
     const canvas = document.getElementById("nethack");
     const ctx = canvas.getContext("2d");
     const TILE_SIZE = 16;
@@ -244,7 +244,8 @@
       inventory: [],
       inventorySize: 5, // Max unique item types
       inventoryMaxItems: 20, // Max total items (including stacks)
-      poisonTurns: 0
+      poisonTurns: 0,
+      accuracy: 70 // Player's base hit chance (%)
     };
     
     let dungeon = { tiles: [], width: WIDTH, height: HEIGHT, rooms: [] };
@@ -255,12 +256,12 @@
     let kills = 0;
     let dungeonLevel = 1;
     
-    // Monster types
+    // Monster types with defense
     const MONSTER_TYPES = [
-      { glyph: 'g', name: 'goblin', color: '#0a0', hp: 5, damage: 2, xp: 5 },
-      { glyph: 'o', name: 'orc', color: '#f80', hp: 8, damage: 3, xp: 10 },
-      { glyph: 'T', name: 'troll', color: '#0f0', hp: 15, damage: 5, xp: 20 },
-      { glyph: 'D', name: 'dragon', color: '#f00', hp: 30, damage: 8, xp: 50 }
+      { glyph: 'g', name: 'goblin', color: '#0a0', hp: 5, damage: 2, xp: 5, defense: 5, hitChance: 80 },
+      { glyph: 'o', name: 'orc', color: '#f80', hp: 8, damage: 3, xp: 10, defense: 10, hitChance: 85 },
+      { glyph: 'T', name: 'troll', color: '#0f0', hp: 15, damage: 5, xp: 20, defense: 15, hitChance: 90 },
+      { glyph: 'D', name: 'dragon', color: '#f00', hp: 30, damage: 8, xp: 50, defense: 20, hitChance: 95 }
     ];
     
     // Item types
@@ -296,8 +297,7 @@
             break;
           }
         }
-        if (overlap) continue; // Skip overlapping rooms
-        // Occasionally make L-shaped rooms
+        if (overlap) continue;
         if (Math.random() < 0.3) {
           let extX = Math.floor(Math.random() * 2) + 1;
           let extY = Math.floor(Math.random() * 2) + 1;
@@ -313,30 +313,44 @@
               tiles[y][x] = '.';
             }
           }
-          rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw / 2), cy: Math.floor(ry + rh / 2) });
+          rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + Math.floor(rw / 2), cy: ry + Math.floor(rh / 2) });
         }
       }
-      // Connect rooms with curved or straight corridors
-      for (let i = 1; i < rooms.length; i++) {
-        let prev = rooms[i - 1];
-        let curr = rooms[i];
-        if (Math.random() < 0.5) {
-          let midX = Math.floor((prev.cx + curr.cx) / 2);
-          let midY = Math.floor((prev.cy + curr.cy) / 2);
-          for (let x = prev.cx; x <= midX; x++) tiles[prev.cy][x] = '.';
-          for (let y = prev.cy; y <= midY; y++) tiles[y][midX] = '.';
-          for (let x = midX; x <= curr.cx; x++) tiles[midY][x] = '.';
-          for (let y = midY; y <= curr.cy; y++) tiles[y][curr.cx] = '.';
-        } else {
-          for (let x = Math.min(prev.cx, curr.cx); x <= Math.max(prev.cx, curr.cx); x++) {
-            tiles[prev.cy][x] = '.';
-          }
-          for (let y = Math.min(prev.cy, curr.cy); y <= Math.max(prev.cy, curr.cy); y++) {
-            tiles[y][curr.cx] = '.';
+      // Ensure all rooms are connected using a minimum spanning tree approach
+      let connected = new Set([0]);
+      while (connected.size < rooms.length) {
+        let minDist = Infinity;
+        let bestI = -1, bestJ = -1;
+        for (let i of connected) {
+          for (let j = 0; j < rooms.length; j++) {
+            if (!connected.has(j)) {
+              let dist = Math.hypot(rooms[i].cx - rooms[j].cx, rooms[i].cy - rooms[j].cy);
+              if (dist < minDist) {
+                minDist = dist;
+                bestI = i;
+                bestJ = j;
+              }
+            }
           }
         }
+        connectRooms(rooms[bestI], rooms[bestJ], tiles);
+        connected.add(bestJ);
       }
       return { tiles, width: w, height: h, rooms };
+    }
+    
+    function connectRooms(room1, room2, tiles) {
+      let x1 = room1.cx, y1 = room1.cy, x2 = room2.cx, y2 = room2.cy;
+      while (x1 !== x2 || y1 !== y2) {
+        if (Math.abs(x2 - x1) > Math.abs(y2 - y1)) {
+          x1 += Math.sign(x2 - x1);
+        } else {
+          y1 += Math.sign(y2 - y1);
+        }
+        if (x1 >= 0 && x1 < tiles[0].length && y1 >= 0 && y1 < tiles.length) {
+          tiles[y1][x1] = '.';
+        }
+      }
     }
     
     function findWalkable() {
@@ -378,7 +392,9 @@
           hp: type.hp,
           maxHp: type.hp,
           damage: type.damage,
-          xp: type.xp
+          xp: type.xp,
+          defense: type.defense,
+          hitChance: type.hitChance
         });
       }
     }
@@ -538,15 +554,23 @@
     }
     
     function attack(attacker, defender) {
-      let damage = attacker === player 
+      let baseDamage = attacker === player 
         ? (player.weapon ? player.weapon.damage : 2)
         : attacker.damage;
-      damage = Math.max(1, damage + Math.floor(Math.random() * 3) - 1);
-      defender.hp -= damage;
+      // Hit/miss check
+      let hitChance = attacker === player ? player.accuracy : attacker.hitChance;
+      if (Math.random() * 100 > hitChance) {
+        log(attacker === player ? 'You miss!' : `The ${attacker.name} misses!`, 'damage');
+        return false;
+      }
+      let damage = Math.max(1, baseDamage + Math.floor(Math.random() * 3) - 1);
+      // Apply defense (reduce damage by 10% of defense value)
+      let effectiveDamage = Math.max(1, damage - (defender.defense || 0) / 10);
+      defender.hp -= effectiveDamage;
       if (attacker === player) {
-        log(`You hit the ${defender.name} for ${damage} damage!`, 'damage');
+        log(`You hit the ${defender.name} for ${effectiveDamage} damage!`, 'damage');
       } else {
-        log(`The ${attacker.name} hits you for ${damage} damage!`, 'damage');
+        log(`The ${attacker.name} hits you for ${effectiveDamage} damage!`, 'damage');
       }
       if (defender.hp <= 0) {
         if (defender === player) {
@@ -554,6 +578,10 @@
           setTimeout(showDeathScreen, 500);
         } else {
           kills++;
+          log(`You killed the ${defender.name}!`, 'death');
+          player.xp += defender.xp;
+          monsters = monsters.filter(m => m !== defender);
+          checkLevelUp();
         }
         return true;
       }
@@ -566,6 +594,7 @@
         player.level++;
         player.maxHp += 5;
         player.hp = player.maxHp;
+        player.accuracy += 5; // Improve accuracy with level
         log(`Level up! You are now level ${player.level}!`, 'pickup');
         updateStats();
       }
@@ -576,7 +605,6 @@
       let newY = entity.y + dy;
       if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) return false;
       if (dungeon.tiles[newY][newX] === '#') return false;
-      // Check for collision with other entities
       if (entity === player) {
         if (monsters.some(m => m.x === newX && m.y === newY)) return false;
       } else {
@@ -587,10 +615,6 @@
         let monster = monsters.find(m => m.x === newX && m.y === newY);
         if (monster) {
           if (attack(player, monster)) {
-            log(`You killed the ${monster.name}!`, 'death');
-            player.xp += monster.xp;
-            monsters = monsters.filter(m => m !== monster);
-            checkLevelUp();
             updateStats();
           }
           return false;
@@ -611,9 +635,7 @@
             const totalItems = player.inventory.reduce((sum, i) => sum + i.count, 0);
             if (totalItems < player.inventoryMaxItems) {
               let existing = player.inventory.find(i => 
-                i.name === item.name && 
-                i.damage === item.damage && 
-                i.heal === item.heal
+                i.name === item.name && i.damage === item.damage && i.heal === item.heal
               );
               if (existing) {
                 existing.count++;
@@ -706,7 +728,6 @@
         openSet = openSet.filter(node => node !== current);
         closedSet.add(`${current.x},${current.y}`);
 
-        // Restrict to cardinal directions only
         for (let [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
           let newX = current.x + dx;
           let newY = current.y + dy;
@@ -736,7 +757,6 @@
           let next = path[1];
           let dx = next.x - monster.x;
           let dy = next.y - monster.y;
-          // Limit to one tile move, only cardinal directions
           if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
             dx = Math.sign(dx);
             dy = Math.sign(dy);
@@ -744,7 +764,6 @@
           if (Math.abs(player.x - monster.x) <= 1 && Math.abs(player.y - monster.y) <= 1) {
             attack(monster, player);
           } else if (!moveEntity(monster, dx, dy)) {
-            // Fallback to random cardinal move toward player
             let directions = [];
             if (monster.x < player.x) directions.push([1, 0]);
             if (monster.x > player.x) directions.push([-1, 0]);
@@ -818,7 +837,6 @@
           gameLoop();
         }
       } else {
-        // Wait action
         turn++;
         if (player.poisonTurns > 0) {
           player.hp -= 1;
@@ -848,7 +866,7 @@
       if (e.key === 'n') { dx = 1; dy = 1; }
       if (e.key === ' ') {
         e.preventDefault();
-        handleMove(0, 0); // Wait action
+        handleMove(0, 0);
       }
       if (e.key >= '1' && e.key <= '5') {
         const index = parseInt(e.key) - 1;
