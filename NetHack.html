@@ -80,6 +80,13 @@
       background: #000;
       border-color: #050;
     }
+    .control-btn.center[data-dir="wait"] {
+      cursor: pointer;
+    }
+    .control-btn.center[data-dir="wait"]:hover {
+      background: #002200;
+      border-color: #0ff;
+    }
     #inventory-list {
       display: flex;
       flex-wrap: wrap;
@@ -184,7 +191,7 @@
     <canvas id="nethack" width="640" height="480"></canvas>
     <div id="stats">
       <div>HP: <span id="hp">20/20</span> | Level: <span id="level">1</span> | XP: <span id="xp">0</span> | Depth: <span id="depth">1</span></div>
-      <div>Weapon: <span id="weapon">Fists</span> | Gold: <span id="gold">0</span></div>
+      <div>Weapon: <span id="weapon">Fists</span> | Gold: <span id="gold">0</span> | Status: <span id="status">Normal</span></div>
     </div>
     <div id="inventory" style="padding: 10px; border: 2px solid #0f0; background: #001100; max-height: 150px; overflow-y: auto; font-size: 12px;">
       <div>Inventory (Tap or Keys 1-5 to use):</div>
@@ -195,14 +202,14 @@
       <button class="control-btn" data-dir="n" aria-label="Move north">↑</button>
       <button class="control-btn" data-dir="ne" aria-label="Move northeast">↗</button>
       <button class="control-btn" data-dir="w" aria-label="Move west">←</button>
-      <button class="control-btn center" aria-disabled="true" disabled>@</button>
+      <button class="control-btn center" data-dir="wait" aria-label="Wait">•</button>
       <button class="control-btn" data-dir="e" aria-label="Move east">→</button>
       <button class="control-btn" data-dir="sw" aria-label="Move southwest">↙</button>
       <button class="control-btn" data-dir="s" aria-label="Move south">↓</button>
       <button class="control-btn" data-dir="se" aria-label="Move southeast">↘</button>
     </div>
     <div id="log" aria-live="polite">
-      <div class="log-entry">Welcome to NetHack! Use arrow keys or buttons to move. Bump into monsters to attack.</div>
+      <div class="log-entry">Welcome to NetHack! Use arrow keys, buttons, or Space to wait. Bump into monsters to attack.</div>
     </div>
   </div>
   <div id="restart-modal">
@@ -235,12 +242,12 @@
       weapon: null,
       gold: 0,
       inventory: [],
-      inventorySize: 5,
-      inventoryMaxItems: 20,
+      inventorySize: 5, // Max unique item types
+      inventoryMaxItems: 20, // Max total items (including stacks)
       poisonTurns: 0
     };
     
-    let dungeon = { tiles: [], width: WIDTH, height: HEIGHT };
+    let dungeon = { tiles: [], width: WIDTH, height: HEIGHT, rooms: [] };
     let monsters = [];
     let items = [];
     let traps = [];
@@ -438,7 +445,7 @@
       player.poisonTurns = 0;
       dungeonLevel = 1;
       kills = 0;
-      document.getElementById('log').innerHTML = '<div class="log-entry">Welcome to NetHack! Use arrow keys or buttons to move. Bump into monsters to attack.</div>';
+      document.getElementById('log').innerHTML = '<div class="log-entry">Welcome to NetHack! Use arrow keys, buttons, or Space to wait. Bump into monsters to attack.</div>';
       initGame();
     }
     
@@ -487,6 +494,7 @@
       document.getElementById('weapon').textContent = player.weapon ? player.weapon.name : 'Fists';
       document.getElementById('gold').textContent = player.gold;
       document.getElementById('depth').textContent = dungeonLevel;
+      document.getElementById('status').textContent = player.poisonTurns > 0 ? `Poisoned (${player.poisonTurns} turns)` : 'Normal';
       const inventoryList = document.getElementById('inventory-list');
       inventoryList.innerHTML = '';
       if (player.inventory.length === 0) {
@@ -666,8 +674,7 @@
         let monster = monsters[i];
         let dx = Math.sign(player.x - monster.x);
         let dy = Math.sign(player.y - monster.y);
-        if (Math.abs(player.x - monster.x) <= 1 && Math.abs(player.y - monster.y) <= 1 
-            && (dx !== 0 || dy !== 0)) {
+        if (Math.abs(player.x - monster.x) <= 1 && Math.abs(player.y - monster.y) <= 1) {
           attack(monster, player);
           updateStats();
         } else {
@@ -728,6 +735,22 @@
         } else {
           gameLoop();
         }
+      } else {
+        // Wait action
+        turn++;
+        if (player.poisonTurns > 0) {
+          player.hp -= 1;
+          player.poisonTurns--;
+          log(`Poison deals 1 damage! (${player.poisonTurns} turns left)`, 'damage');
+          if (player.hp <= 0) {
+            log('You died from poison!', 'death');
+            setTimeout(showDeathScreen, 500);
+            return;
+          }
+          updateStats();
+        }
+        moveMonsters();
+        gameLoop();
       }
     }
     
@@ -741,6 +764,10 @@
       if (e.key === 'u') { dx = 1; dy = -1; }
       if (e.key === 'b') { dx = -1; dy = 1; }
       if (e.key === 'n') { dx = 1; dy = 1; }
+      if (e.key === ' ') {
+        e.preventDefault();
+        handleMove(0, 0); // Wait action
+      }
       if (e.key >= '1' && e.key <= '5') {
         const index = parseInt(e.key) - 1;
         if (player.inventory[index]) {
@@ -760,11 +787,15 @@
         setTimeout(() => { btn.style.background = '#001100'; }, 200);
         const dir = btn.dataset.dir;
         let dx = 0, dy = 0;
-        if (dir.includes('n')) dy = -1;
-        if (dir.includes('s')) dy = 1;
-        if (dir.includes('w')) dx = -1;
-        if (dir.includes('e')) dx = 1;
-        handleMove(dx, dy);
+        if (dir === 'wait') {
+          handleMove(0, 0);
+        } else {
+          if (dir.includes('n')) dy = -1;
+          if (dir.includes('s')) dy = 1;
+          if (dir.includes('w')) dx = -1;
+          if (dir.includes('e')) dx = 1;
+          handleMove(dx, dy);
+        }
       };
       btn.removeEventListener('click', btn._clickHandler);
       btn.removeEventListener('touchstart', btn._touchHandler);
