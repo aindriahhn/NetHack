@@ -165,12 +165,15 @@
         height: auto;
       }
       #controls {
-        grid-template-columns: repeat(3, 70px);
-        grid-template-rows: repeat(3, 70px);
+        grid-template-columns: repeat(3, 80px);
+        grid-template-rows: repeat(3, 80px);
+      }
+      .control-btn {
+        font-size: 28px;
       }
       .inventory-btn {
         font-size: 16px;
-        padding: 10px;
+        padding: 12px;
         min-width: 100px;
       }
     }
@@ -183,23 +186,23 @@
       <div>HP: <span id="hp">20/20</span> | Level: <span id="level">1</span> | XP: <span id="xp">0</span> | Depth: <span id="depth">1</span></div>
       <div>Weapon: <span id="weapon">Fists</span> | Gold: <span id="gold">0</span></div>
     </div>
-    <div id="log">
-      <div class="log-entry">Welcome to NetHack! Use arrow keys to move. Bump into monsters to attack.</div>
-    </div>
     <div id="inventory" style="padding: 10px; border: 2px solid #0f0; background: #001100; max-height: 150px; overflow-y: auto; font-size: 12px;">
       <div>Inventory (Tap or Keys 1-5 to use):</div>
       <div id="inventory-list"></div>
     </div>
     <div id="controls">
-      <button class="control-btn" data-dir="nw">↖</button>
-      <button class="control-btn" data-dir="n">↑</button>
-      <button class="control-btn" data-dir="ne">↗</button>
-      <button class="control-btn" data-dir="w">←</button>
-      <button class="control-btn center">@</button>
-      <button class="control-btn" data-dir="e">→</button>
-      <button class="control-btn" data-dir="sw">↙</button>
-      <button class="control-btn" data-dir="s">↓</button>
-      <button class="control-btn" data-dir="se">↘</button>
+      <button class="control-btn" data-dir="nw" aria-label="Move northwest">↖</button>
+      <button class="control-btn" data-dir="n" aria-label="Move north">↑</button>
+      <button class="control-btn" data-dir="ne" aria-label="Move northeast">↗</button>
+      <button class="control-btn" data-dir="w" aria-label="Move west">←</button>
+      <button class="control-btn center" aria-disabled="true" disabled>@</button>
+      <button class="control-btn" data-dir="e" aria-label="Move east">→</button>
+      <button class="control-btn" data-dir="sw" aria-label="Move southwest">↙</button>
+      <button class="control-btn" data-dir="s" aria-label="Move south">↓</button>
+      <button class="control-btn" data-dir="se" aria-label="Move southeast">↘</button>
+    </div>
+    <div id="log" aria-live="polite">
+      <div class="log-entry">Welcome to NetHack! Use arrow keys or buttons to move. Bump into monsters to attack.</div>
     </div>
   </div>
   <div id="restart-modal">
@@ -211,7 +214,7 @@
         <div>Monsters Slain: <span id="final-kills">0</span></div>
         <div>Turns Survived: <span id="final-turns">0</span></div>
       </div>
-      <button id="restart-btn">Play Again</button>
+      <button id="restart-btn" aria-label="Restart game">Play Again</button>
     </div>
   </div>
   <script>
@@ -431,7 +434,7 @@
       player.inventory = [];
       dungeonLevel = 1;
       kills = 0;
-      document.getElementById('log').innerHTML = '<div class="log-entry">Welcome to NetHack! Use arrow keys to move. Bump into monsters to attack.</div>';
+      document.getElementById('log').innerHTML = '<div class="log-entry">Welcome to NetHack! Use arrow keys or buttons to move. Bump into monsters to attack.</div>';
       initGame();
     }
     
@@ -444,6 +447,27 @@
       logDiv.scrollTop = logDiv.scrollHeight;
     }
     
+    function useItem(index) {
+      if (player.inventory[index]) {
+        const item = player.inventory[index];
+        if (item.damage) {
+          player.weapon = item;
+          log(`You equip the ${item.name}!`, 'pickup');
+        } else if (item.heal) {
+          const healing = item.heal;
+          const preHp = player.hp;
+          player.hp = Math.min(player.maxHp, player.hp + healing);
+          const healedAmount = player.hp - preHp;
+          log(`You drink the ${item.name} and heal ${healedAmount} HP!`, 'pickup');
+          player.inventory.splice(index, 1);
+        }
+        updateStats();
+        turn++;
+        moveMonsters();
+        gameLoop();
+      }
+    }
+
     function updateStats() {
       document.getElementById('hp').textContent = `${player.hp}/${player.maxHp}`;
       document.getElementById('level').textContent = player.level;
@@ -459,32 +483,18 @@
         inventoryList.appendChild(emptyText);
       } else {
         player.inventory.forEach((item, i) => {
-          const btn = document.createElement('div');
+          const btn = document.createElement('button');
           btn.className = 'inventory-btn';
           btn.textContent = `(${i + 1}) ${item.name}`;
           btn.dataset.index = i;
+          btn.setAttribute('aria-label', item.damage ? `Equip ${item.name}` : `Use ${item.name}`);
           inventoryList.appendChild(btn);
           const handleInput = (e) => {
             e.preventDefault();
+            btn.style.background = '#003300';
+            setTimeout(() => { btn.style.background = '#001100'; }, 200);
             const index = parseInt(btn.dataset.index);
-            if (player.inventory[index]) {
-              const item = player.inventory[index];
-              if (item.damage) {
-                player.weapon = item;
-                log(`You equip the ${item.name}!`, 'pickup');
-              } else if (item.heal) {
-                const healing = item.heal;
-                const preHp = player.hp;
-                player.hp = Math.min(player.maxHp, player.hp + healing);
-                const healedAmount = player.hp - preHp;
-                log(`You drink the ${item.name} and heal ${healedAmount} HP!`, 'pickup');
-                player.inventory.splice(index, 1);
-              }
-              updateStats();
-              turn++;
-              moveMonsters();
-              gameLoop();
-            }
+            useItem(index);
           };
           btn.removeEventListener('click', btn._clickHandler);
           btn.removeEventListener('touchstart', btn._touchHandler);
@@ -693,23 +703,7 @@
       if (e.key >= '1' && e.key <= '5') {
         const index = parseInt(e.key) - 1;
         if (player.inventory[index]) {
-          const item = player.inventory[index];
-          if (item.damage) {
-            player.weapon = item;
-            log(`You equip the ${item.name}!`, 'pickup');
-          } else if (item.heal) {
-            const healing = item.heal;
-            const preHp = player.hp;
-            player.hp = Math.min(player.maxHp, player.hp + healing);
-            const healedAmount = player.hp - preHp;
-            log(`You drink the ${item.name} and heal ${healedAmount} HP!`, 'pickup');
-            player.inventory.splice(index, 1);
-          }
-          updateStats();
-          e.preventDefault();
-          turn++;
-          moveMonsters();
-          gameLoop();
+          useItem(index);
         }
       }
       if (dx !== 0 || dy !== 0) {
@@ -721,6 +715,8 @@
     document.querySelectorAll('.control-btn[data-dir]').forEach(btn => {
       const handleInput = (e) => {
         e.preventDefault();
+        btn.style.background = '#003300';
+        setTimeout(() => { btn.style.background = '#001100'; }, 200);
         const dir = btn.dataset.dir;
         let dx = 0, dy = 0;
         if (dir.includes('n')) dy = -1;
