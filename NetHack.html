@@ -576,6 +576,13 @@
       let newY = entity.y + dy;
       if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) return false;
       if (dungeon.tiles[newY][newX] === '#') return false;
+      // Check for collision with other entities
+      if (entity === player) {
+        if (monsters.some(m => m.x === newX && m.y === newY)) return false;
+      } else {
+        if (player.x === newX && player.y === newY) return false;
+        if (monsters.some(m => m.x === newX && m.y === newY && m !== entity)) return false;
+      }
       if (entity === player) {
         let monster = monsters.find(m => m.x === newX && m.y === newY);
         if (monster) {
@@ -699,7 +706,8 @@
         openSet = openSet.filter(node => node !== current);
         closedSet.add(`${current.x},${current.y}`);
 
-        for (let [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        // Restrict to cardinal directions only
+        for (let [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
           let newX = current.x + dx;
           let newY = current.y + dy;
           if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT || dungeon.tiles[newY][newX] === '#') continue;
@@ -728,12 +736,24 @@
           let next = path[1];
           let dx = next.x - monster.x;
           let dy = next.y - monster.y;
+          // Limit to one tile move, only cardinal directions
+          if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+            dx = Math.sign(dx);
+            dy = Math.sign(dy);
+          }
           if (Math.abs(player.x - monster.x) <= 1 && Math.abs(player.y - monster.y) <= 1) {
             attack(monster, player);
           } else if (!moveEntity(monster, dx, dy)) {
-            let dx = Math.sign(player.x - monster.x);
-            let dy = Math.sign(player.y - monster.y);
-            moveEntity(monster, dx, 0) || moveEntity(monster, 0, dy);
+            // Fallback to random cardinal move toward player
+            let directions = [];
+            if (monster.x < player.x) directions.push([1, 0]);
+            if (monster.x > player.x) directions.push([-1, 0]);
+            if (monster.y < player.y) directions.push([0, 1]);
+            if (monster.y > player.y) directions.push([0, -1]);
+            if (directions.length > 0) {
+              let [dx, dy] = directions[Math.floor(Math.random() * directions.length)];
+              moveEntity(monster, dx, dy);
+            }
           }
         } else {
           let dx = Math.sign(player.x - monster.x);
@@ -869,6 +889,7 @@
     
     document.getElementById('restart-btn').addEventListener('click', restartGame);
     
+    // Start the game
     initGame();
   </script>
 </body>
