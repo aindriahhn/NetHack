@@ -156,42 +156,15 @@
       background: #003300;
     }
     @media (max-width: 768px) {
-      body {
-        padding: 5px;
-      }
-      #game-container {
-        flex-direction: column;
-        align-items: center;
-      }
-      canvas {
-        width: 100%;
-        max-width: 100%;
-        height: auto;
-      }
-      #stats, #inventory, #log {
-        width: 100%;
-        max-width: 100%;
-        font-size: 10px;
-      }
-      #controls {
-        grid-template-columns: repeat(3, 40px);
-        grid-template-rows: repeat(3, 40px);
-        gap: 3px;
-      }
-      .control-btn {
-        font-size: 16px;
-      }
-      .inventory-btn {
-        font-size: 10px;
-        padding: 4px;
-      }
-      #toggle-action {
-        font-size: 12px;
-        padding: 8px 16px;
-      }
-      #log {
-        max-height: 100px;
-      }
+      body { padding: 5px; }
+      #game-container { flex-direction: column; align-items: center; }
+      canvas { width: 100%; max-width: 100%; height: auto; }
+      #stats, #inventory, #log { width: 100%; max-width: 100%; font-size: 10px; }
+      #controls { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 3px; }
+      .control-btn { font-size: 16px; }
+      .inventory-btn { font-size: 10px; padding: 4px; }
+      #toggle-action { font-size: 12px; padding: 8px 16px; }
+      #log { max-height: 100px; }
     }
   </style>
 </head>
@@ -277,6 +250,7 @@
       { glyph: '^', name: 'poison trap', color: '#0f0', poison: 3, hidden: true }
     ];
     function generateDungeon(w, h) {
+      console.log("Generating dungeon, attempt started...");
       for (let attempt = 0; attempt < 10; attempt++) {
         let tiles = Array(h).fill().map(() => Array(w).fill('#'));
         let rooms = [];
@@ -298,7 +272,10 @@
             rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw/2), cy: Math.floor(ry + rh/2) });
           }
         }
-        if (rooms.length < 3) continue;
+        if (rooms.length < 3) {
+          console.warn(`Attempt ${attempt + 1}: Too few rooms (${rooms.length}), retrying...`);
+          continue;
+        }
         let connected = new Set([0]);
         while (connected.size < rooms.length) {
           let minDist = Infinity;
@@ -330,10 +307,12 @@
           } else break;
         }
         if (connected.size === rooms.length) {
+          console.log(`Dungeon generated successfully with ${rooms.length} rooms`);
           return { tiles, width: w, height: h, rooms };
         }
+        console.warn(`Attempt ${attempt + 1}: Failed to connect all rooms (${connected.size}/${rooms.length})`);
       }
-      console.warn("Failed to generate fully connected dungeon.");
+      console.warn("Failed to generate fully connected dungeon, using fallback.");
       return { tiles: Array(h).fill().map(() => Array(w).fill('.')), width: w, height: h, rooms: [] };
     }
     function computeFOV(x, y, radius) {
@@ -399,7 +378,7 @@
           return { x, y };
         }
       }
-      return { x: player.x + 1, y: player.y };
+      return { x: Math.min(WIDTH - 2, player.x + 1), y: player.y };
     }
     function spawnMonsters(count) {
       monsters = [];
@@ -445,6 +424,7 @@
       }
     }
     function initGame(restart = false) {
+      console.log("Initializing game...");
       if (restart) {
         player = {
           x: 0, y: 0, glyph: '@', color: '#fff',
@@ -461,6 +441,12 @@
       if (dungeon.rooms.length > 0) {
         player.x = dungeon.rooms[0].cx;
         player.y = dungeon.rooms[0].cy;
+        console.log(`Player placed at room center: (${player.x}, ${player.y})`);
+      } else {
+        let pos = findWalkable();
+        player.x = pos.x;
+        player.y = pos.y;
+        console.warn(`No rooms, player placed at: (${player.x}, ${player.y})`);
       }
       player.hp = player.maxHp;
       player.poisonTurns = 0;
@@ -474,6 +460,40 @@
       computeFOV(player.x, player.y, 8);
       updateStats();
       gameLoop();
+    }
+    function gameLoop() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      let tilesDrawn = 0;
+      for (let y = 0; y < HEIGHT; y++) {
+        for (let x = 0; x < WIDTH; x++) {
+          if (!explored[y][x]) continue;
+          ctx.fillStyle = visible[y][x] ? '#0f0' : '#050';
+          ctx.fillText(dungeon.tiles[y][x], x * TILE_SIZE, (y + 1) * TILE_SIZE);
+          tilesDrawn++;
+        }
+      }
+      console.log(`gameLoop: ${tilesDrawn} tiles drawn`);
+      for (let trap of traps) {
+        if (visible[trap.y][trap.x] && !trap.hidden) {
+          ctx.fillStyle = trap.color;
+          ctx.fillText(trap.glyph, trap.x * TILE_SIZE, (trap.y + 1) * TILE_SIZE);
+        }
+      }
+      for (let item of items) {
+        if (visible[item.y][item.x]) {
+          ctx.fillStyle = item.color;
+          ctx.fillText(item.glyph, item.x * TILE_SIZE, (item.y + 1) * TILE_SIZE);
+        }
+      }
+      for (let monster of monsters) {
+        if (visible[monster.y][monster.x]) {
+          ctx.fillStyle = monster.color;
+          ctx.fillText(monster.glyph, monster.x * TILE_SIZE, (monster.y + 1) * TILE_SIZE);
+        }
+      }
+      ctx.fillStyle = player.color;
+      ctx.fillText(player.glyph, player.x * TILE_SIZE, (player.y + 1) * TILE_SIZE);
     }
     function log(msg, cls = '') {
       const div = document.getElementById('log');
@@ -816,6 +836,7 @@
       canvas.height = (w / WIDTH) * HEIGHT;
       TILE_SIZE = w / WIDTH;
       ctx.font = `${TILE_SIZE}px monospace`;
+      console.log(`Canvas resized: ${canvas.width}x${canvas.height}, TILE_SIZE: ${TILE_SIZE}`);
       gameLoop();
     }
     window.addEventListener('resize', resizeCanvas);
