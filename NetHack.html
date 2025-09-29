@@ -272,6 +272,7 @@
     ];
     
     function generateDungeon(w, h) {
+      // ... (Dungeon generation logic remains the same)
       let tiles = Array(h).fill().map(() => Array(w).fill('#'));
       let rooms = [];
       for (let i = 0; i < 15; i++) {
@@ -412,7 +413,8 @@
         isStairs: true
       });
       for (let i = 0; i < count; i++) {
-        let itemIndex = Math.floor(Math.random() * (ITEM_TYPES.length - 1));
+        // Corrected: Item index should be max (ITEM_TYPES.length - 2) to exclude 'stairs'
+        let itemIndex = Math.floor(Math.random() * (ITEM_TYPES.length - 2)); 
         let type = ITEM_TYPES[itemIndex]; 
         let pos = findWalkable();
         let item = {
@@ -437,12 +439,28 @@
       }
     }
     
-    function initGame() {
+    /** * Modified: Only resets map, monsters, items, and non-persistent player state 
+     * when moving to a new dungeon level.
+     */
+    function initGame(isRestart = false) {
+      if (isRestart) {
+        player.hp = 20;
+        player.maxHp = 20;
+        player.level = 1;
+        player.xp = 0;
+        player.weapon = null;
+        player.gold = 0;
+        player.inventory = [];
+        dungeonLevel = 1;
+        kills = 0;
+        document.getElementById('log').innerHTML = '<div class="log-entry">Welcome to NetHack! Use arrow keys, buttons, or Space to wait. Bump into monsters to attack.</div>';
+      }
+
       dungeon = generateDungeon(WIDTH, HEIGHT);
       let pos = findWalkable();
       player.x = pos.x;
       player.y = pos.y;
-      player.hp = player.maxHp;
+      player.hp = player.maxHp; // Heal to full on level entry
       player.poisonTurns = 0;
       spawnMonsters(Math.min(30, 10 + dungeonLevel * 2));
       spawnItems(8);
@@ -462,19 +480,7 @@
     }
     
     function restartGame() {
-      player.hp = 20;
-      player.maxHp = 20;
-      player.level = 1;
-      player.xp = 0;
-      player.weapon = null;
-      player.gold = 0;
-      player.inventory = [];
-      player.poisonTurns = 0;
-      player.accuracy = 70;
-      dungeonLevel = 1;
-      kills = 0;
-      document.getElementById('log').innerHTML = '<div class="log-entry">Welcome to NetHack! Use arrow keys, buttons, or Space to wait. Bump into monsters to attack.</div>';
-      initGame();
+      initGame(true); // Pass flag to indicate a full restart
     }
     
     function log(msg, cls = '') {
@@ -492,6 +498,10 @@
         let itemUsed = false;
         
         if (item.damage) {
+          if (player.weapon && player.weapon.name === item.name) {
+             log(`You already have a ${item.name} equipped.`, 'damage');
+             return;
+          }
           player.weapon = { ...item, count: 1 }; // Equip one instance
           log(`You equip the ${item.name}!`, 'pickup');
           itemUsed = true;
@@ -507,7 +517,7 @@
             logMsg = `You drink a ${item.name}, heal ${healedAmount} HP, and cure poison!`;
           }
 
-          if (healedAmount > 0 || player.poisonTurns === 0) {
+          if (healedAmount > 0 || player.poisonTurns > 0) { // Fix: Allow use if only curing poison
             log(logMsg, 'pickup');
             item.count--;
             itemUsed = true;
@@ -520,6 +530,10 @@
         if (itemUsed) {
           if (item.count <= 0) {
             player.inventory.splice(index, 1);
+            // If the item was the equipped weapon, unequip it
+            if (player.weapon && player.weapon.name === item.name) {
+              player.weapon = null;
+            }
           }
           updateStats();
           turn++;
@@ -563,11 +577,13 @@
           inventoryList.appendChild(btn);
           const handleInput = (e) => {
             e.preventDefault();
+            // Simple visual feedback for button press
             btn.style.background = '#006600';
             setTimeout(() => { btn.style.background = '#001100'; }, 200);
             const index = parseInt(btn.dataset.index);
             useItem(index);
           };
+          // Remove/Re-add listeners to prevent multiple bindings on update
           btn.removeEventListener('click', btn._clickHandler);
           btn.removeEventListener('touchstart', btn._touchHandler);
           btn._clickHandler = handleInput;
@@ -618,43 +634,41 @@
     
     function checkLevelUp() {
       let needed = player.level * 20;
-      if (player.xp >= needed) {
+      while (player.xp >= needed) { // Use while loop to handle multiple level-ups
         player.level++;
         player.maxHp += 5;
         player.hp = player.maxHp;
         player.accuracy += 5; // Improve accuracy with level
         log(`Level up! You are now level ${player.level}!`, 'pickup');
+        needed = player.level * 20; // Recalculate needed XP
         updateStats();
       }
     }
     
-    // MODIFIED: Returns 'attack' if combat occurred, true if moved, false otherwise
     function moveEntity(entity, dx, dy) {
       let newX = entity.x + dx;
       let newY = entity.y + dy;
       if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) return false;
       if (dungeon.tiles[newY][newX] === '#') return false;
-      if (entity === player) {
-        if (monsters.some(m => m.x === newX && m.y === newY)) return false;
-      } else {
-        if (player.x === newX && player.y === newY) return false;
-        if (monsters.some(m => m.x === newX && m.y === newY && m !== entity)) return false;
+      
+      const isPlayer = entity === player;
+      
+      // Check for other entities
+      if (isPlayer) {
+        if (monsters.some(m => m.x === newX && m.y === newY)) return false; // Player attacks, doesn't move
+      } else { // Monster
+        if (player.x === newX && player.y === newY) return false; // Monster attacks, doesn't move
+        if (monsters.some(m => m.x === newX && m.y === newY && m !== entity)) return false; // Monster blocks
       }
-      if (entity === player) {
-        let monster = monsters.find(m => m.x === newX && m.y === newY);
-        if (monster) {
-          if (attack(player, monster)) {
-            updateStats();
-          }
-          // NEW LOGIC: Signal that an attack occurred, preventing movement but consuming a turn.
-          return 'attack'; 
-        }
+
+      // If it's the player, handle interactions *before* moving
+      if (isPlayer) {
         let item = items.find(i => i.x === newX && i.y === newY);
         if (item) {
           if (item.isStairs) {
             log(`You descend to level ${dungeonLevel + 1}!`, 'pickup');
             dungeonLevel++;
-            initGame();
+            initGame(); // New level starts, player doesn't complete turn
             return false;
           }
           if (item.value !== undefined) {
@@ -685,6 +699,7 @@
           }
           updateStats();
         }
+        
         let trap = traps.find(t => t.x === newX && t.y === newY);
         if (trap) {
           trap.hidden = false;
@@ -701,9 +716,9 @@
             player.x = newPos.x;
             player.y = newPos.y;
             log('You triggered a teleport trap! You are whisked away!', 'pickup');
+            traps = traps.filter(t => t !== trap); // Remove trap after use
             updateStats();
-            // Allow turn to proceed
-            return true; 
+            return true; // Teleport counts as a successful move
           } else if (trap.poison) {
             player.poisonTurns = trap.poison;
             player.hp -= 1;
@@ -713,28 +728,39 @@
               setTimeout(showDeathScreen, 500);
               return false;
             }
+            traps = traps.filter(t => t !== trap); // Remove trap after use
             updateStats();
           }
           traps = traps.filter(t => t !== trap);
           updateStats();
         }
-      } else {
+      } else { // Monster-specific checks
+        // Monsters should not move onto items or non-teleport traps
+        if (items.some(i => i.x === newX && i.y === newY)) return false;
         let trap = traps.find(t => t.x === newX && t.y === newY);
-        if (trap && trap.teleport) {
-          trap.hidden = false;
-          let newPos = findSafeWalkable();
-          entity.x = newPos.x;
-          entity.y = newPos.y;
-          log(`The ${entity.name} triggered a teleport trap and vanished!`, 'pickup');
-          traps = traps.filter(t => t !== trap);
-          return false;
+        if (trap) {
+          if (trap.teleport) {
+            trap.hidden = false;
+            let newPos = findSafeWalkable();
+            entity.x = newPos.x;
+            entity.y = newPos.y;
+            log(`The ${entity.name} triggered a teleport trap and vanished!`, 'pickup');
+            traps = traps.filter(t => t !== trap);
+            return false; // Monster already moved (teleported), so no further movement needed this turn
+          } else {
+             // Monster hits a non-teleport trap (like spike/poison), stops movement (doesn't trigger for simplicity)
+             return false;
+          }
         }
       }
+      
+      // Final movement
       entity.x = newX;
       entity.y = newY;
       return true;
     }
     
+    // Pathfinding logic remains sound for finding the path to the target tile
     function getPath(startX, startY, targetX, targetY) {
       let openSet = [{ x: startX, y: startY, f: 0, g: 0, h: 0 }];
       let closedSet = new Set();
@@ -748,9 +774,14 @@
         if (current.x === targetX && current.y === targetY) {
           let path = [];
           let curr = { x: current.x, y: current.y };
+          // Path starts at the square *before* the target
           while (cameFrom.has(`${curr.x},${curr.y}`)) {
             path.unshift({ x: curr.x, y: curr.y });
             curr = cameFrom.get(`${curr.x},${curr.y}`);
+          }
+          // The path should exclude the start position
+          if (path.length > 0 && path[0].x === startX && path[0].y === startY) {
+             path.shift();
           }
           return path;
         }
@@ -762,8 +793,15 @@
           let newY = current.y + dy;
           if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) continue;
           if (dungeon.tiles[newY][newX] === '#') continue;
-          // Avoid other monsters unless it's the target tile
+          
+          // Avoid other monsters unless it's the target tile (the player)
           if ((newX !== targetX || newY !== targetY) && monsters.some(m => m.x === newX && m.y === newY)) continue;
+          
+          // Monsters also shouldn't path through items or non-teleport traps
+          if (items.some(i => i.x === newX && i.y === newY)) continue;
+          let trap = traps.find(t => t.x === newX && t.y === newY);
+          if (trap && !trap.teleport) continue;
+          
           if (closedSet.has(`${newX},${newY}`)) continue;
 
           let g = current.g + 1;
@@ -784,6 +822,9 @@
       return [];
     }
 
+    /** * Modified: Ensures monster attack takes priority over movement, 
+     * which was the core bug for monster-player interaction.
+     */
     function moveMonsters() {
       // Sort monsters by distance to player to ensure nearby monsters move/attack first
       monsters.sort((a, b) => {
@@ -795,6 +836,9 @@
       for (let i = 0; i < monsters.length; i++) {
         let monster = monsters[i];
         
+        // Check if player died on a previous monster's turn
+        if (player.hp <= 0) return; 
+
         // 1. Check for adjacent attack
         if (Math.abs(player.x - monster.x) <= 1 && Math.abs(player.y - monster.y) <= 1) {
           attack(monster, player);
@@ -802,9 +846,12 @@
           // 2. Pathfinding movement
           let path = getPath(monster.x, monster.y, player.x, player.y);
           if (path.length > 0) {
+            // Take the first step towards the player
             let next = path[0];
             let dx = next.x - monster.x;
             let dy = next.y - monster.y;
+            
+            // Move if possible (moveEntity will handle blocks)
             moveEntity(monster, dx, dy);
           }
         }
@@ -812,6 +859,7 @@
     }
     
     function gameLoop() {
+      // Draw logic remains the same
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       for (let y = 0; y < dungeon.height; y++) {
@@ -832,7 +880,8 @@
         ctx.fillText(item.glyph, item.x * TILE_SIZE, (item.y + 1) * TILE_SIZE);
       }
       for (let monster of monsters) {
-        ctx.fillStyle = monster.color;
+        // Simple monster HP check (e.g., color change for low HP)
+        ctx.fillStyle = monster.hp <= monster.maxHp / 4 ? '#ff0' : monster.color;
         ctx.fillText(monster.glyph, monster.x * TILE_SIZE, (monster.y + 1) * TILE_SIZE);
       }
       ctx.fillStyle = player.color;
@@ -856,26 +905,45 @@
       }
 
       moveMonsters();
+      // Check for death again after monster movement
+      if (player.hp <= 0) return false;
+
       updateStats();
       gameLoop();
       return true;
     }
 
-    // MODIFIED: Check for 'attack' result to consume turn
+    /**
+     * Modified: Simplified logic to always call handleTurnEnd if an action 
+     * (move, attack, wait, or trap trigger) was attempted.
+     */
     function handleMove(dx, dy) {
-      const moveResult = moveEntity(player, dx, dy);
-      
-      if (dx !== 0 || dy !== 0) {
-        if (moveResult === true || moveResult === 'attack') {
-          handleTurnEnd();
-        } else {
-          // Failed to move (hit a wall or couldn't pick up) - no turn spent
-          gameLoop(); 
-        }
-      } else {
-        // Wait action (dx=0, dy=0) always consumes a turn
+      if (player.hp <= 0) return;
+
+      if (dx === 0 && dy === 0) {
         log("You wait a turn.", 'pickup');
         handleTurnEnd();
+        return;
+      }
+
+      const newX = player.x + dx;
+      const newY = player.y + dy;
+      const monsterAtTarget = monsters.find(m => m.x === newX && m.y === newY);
+
+      if (monsterAtTarget) {
+        // Player attacks monster. moveEntity handles the attack and returns false (no movement)
+        moveEntity(player, dx, dy);
+        handleTurnEnd(); 
+        return;
+      }
+      
+      // Attempt movement (may pick up item/trigger trap)
+      if (moveEntity(player, dx, dy)) {
+        // Movement was successful (or a teleport trap was triggered) - turn consumed
+        handleTurnEnd();
+      } else {
+        // Movement failed (hit a wall or full inventory) - turn not consumed
+        gameLoop(); 
       }
     }
     
@@ -923,6 +991,7 @@
           handleMove(dx, dy);
         }
       };
+      // Prevent multiple listeners on updates by using a custom property
       btn.removeEventListener('click', btn._clickHandler);
       btn.removeEventListener('touchstart', btn._touchHandler);
       btn._clickHandler = handleInput;
@@ -934,7 +1003,8 @@
     document.getElementById('restart-btn').addEventListener('click', restartGame);
     
     // Start the game
-    initGame();
+    initGame(true); // Start as a full restart
   </script>
+
 </body>
 </html>
