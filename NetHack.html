@@ -272,7 +272,6 @@
     ];
     
     function generateDungeon(w, h) {
-      // ... (Dungeon generation logic remains the same)
       let tiles = Array(h).fill().map(() => Array(w).fill('#'));
       let rooms = [];
       for (let i = 0; i < 15; i++) {
@@ -529,11 +528,11 @@
 
         if (itemUsed) {
           if (item.count <= 0) {
-            player.inventory.splice(index, 1);
-            // If the item was the equipped weapon, unequip it
+            // Check if the item we just depleted was the equipped weapon
             if (player.weapon && player.weapon.name === item.name) {
               player.weapon = null;
             }
+            player.inventory.splice(index, 1);
           }
           updateStats();
           turn++;
@@ -583,7 +582,7 @@
             const index = parseInt(btn.dataset.index);
             useItem(index);
           };
-          // Remove/Re-add listeners to prevent multiple bindings on update
+          // Use a custom property to store the handler for later removal
           btn.removeEventListener('click', btn._clickHandler);
           btn.removeEventListener('touchstart', btn._touchHandler);
           btn._clickHandler = handleInput;
@@ -604,6 +603,8 @@
         log(attacker === player ? 'You miss!' : `The ${attacker.name} misses!`, 'damage');
         return false;
       }
+      
+      // Damage calculation
       let damage = Math.max(1, baseDamage + Math.floor(Math.random() * 3) - 1);
       // Apply defense (reduce damage by 10% of defense value)
       let defenderDefense = defender.defense || 0;
@@ -611,11 +612,14 @@
       let effectiveDamage = Math.max(1, damage - damageReduction);
 
       defender.hp -= effectiveDamage;
+
+      // CORRECT LOGGING: Log the successful hit here
       if (attacker === player) {
         log(`You hit the ${defender.name} for ${effectiveDamage} damage!`, 'damage');
       } else {
         log(`The ${attacker.name} hits you for ${effectiveDamage} damage!`, 'damage');
       }
+
       if (defender.hp <= 0) {
         if (defender === player) {
           log('You died!', 'death');
@@ -932,17 +936,17 @@
 
       if (monsterAtTarget) {
         // Player attacks monster. moveEntity handles the attack and returns false (no movement)
-        moveEntity(player, dx, dy);
+        attack(player, monsterAtTarget);
         handleTurnEnd(); 
         return;
       }
       
       // Attempt movement (may pick up item/trigger trap)
       if (moveEntity(player, dx, dy)) {
-        // Movement was successful (or a teleport trap was triggered) - turn consumed
+        // Movement was successful (or a teleport trap was triggered/stairs taken) - turn consumed
         handleTurnEnd();
       } else {
-        // Movement failed (hit a wall or full inventory) - turn not consumed
+        // Movement failed (hit a wall, tried to move onto stairs/level change, or full inventory) - turn not consumed
         gameLoop(); 
       }
     }
@@ -991,7 +995,7 @@
           handleMove(dx, dy);
         }
       };
-      // Prevent multiple listeners on updates by using a custom property
+      // Use a custom property to store the handler for later removal
       btn.removeEventListener('click', btn._clickHandler);
       btn.removeEventListener('touchstart', btn._touchHandler);
       btn._clickHandler = handleInput;
@@ -1005,6 +1009,5 @@
     // Start the game
     initGame(true); // Start as a full restart
   </script>
-
 </body>
 </html>
