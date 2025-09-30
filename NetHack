@@ -382,7 +382,30 @@
     }
     function spawnMonsters(count) {
       monsters = [];
-      let maxType = Math.min(MONSTER_TYPES.length - 1, Math.floor(dungeonLevel / 2));
+      function spawnMonsters(count) {
+  monsters = [];
+  
+  // Calculate max monster type based on depth
+  // This unlocks one new monster type every 2 levels
+  let maxType = Math.min(MONSTER_TYPES.length - 1, Math.floor((dungeonLevel - 1) / 2));
+  
+  for (let i = 0; i < count; i++) {
+    let type = MONSTER_TYPES[Math.floor(Math.random() * (maxType + 1))];
+    let pos = findWalkable();
+    monsters.push({
+      ...pos,
+      glyph: type.glyph,
+      color: type.color,
+      name: type.name,
+      hp: type.hp,
+      maxHp: type.hp,
+      damage: Math.min(type.damage + Math.floor(dungeonLevel / 2), type.damage * 2),
+      xp: Math.min(type.xp * dungeonLevel, type.xp * 10),
+      defense: Math.min(type.defense + dungeonLevel, type.defense * 2),
+      hitChance: type.hitChance
+    });
+  }
+}
       for (let i = 0; i < count; i++) {
         let type = MONSTER_TYPES[Math.floor(Math.random() * (maxType + 1))];
         let pos = findWalkable();
