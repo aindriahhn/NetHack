@@ -252,7 +252,6 @@
       { glyph: '^', name: 'poison trap', color: '#0f0', poison: 3, hidden: true }
     ];
     function generateDungeon(w, h) {
-      console.log("Generating dungeon, attempt started...");
       for (let attempt = 0; attempt < 10; attempt++) {
         let tiles = Array(h).fill().map(() => Array(w).fill('#'));
         let rooms = [];
@@ -274,10 +273,7 @@
             rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw/2), cy: Math.floor(ry + rh/2) });
           }
         }
-        if (rooms.length < 3) {
-          console.warn(`Attempt ${attempt + 1}: Too few rooms (${rooms.length}), retrying...`);
-          continue;
-        }
+        if (rooms.length < 3) continue;
         let connected = new Set([0]);
         while (connected.size < rooms.length) {
           let minDist = Infinity;
@@ -309,12 +305,9 @@
           } else break;
         }
         if (connected.size === rooms.length) {
-          console.log(`Dungeon generated successfully with ${rooms.length} rooms`);
           return { tiles, width: w, height: h, rooms };
         }
-        console.warn(`Attempt ${attempt + 1}: Failed to connect all rooms (${connected.size}/${rooms.length})`);
       }
-      console.warn("Failed to generate fully connected dungeon, using fallback.");
       return { tiles: Array(h).fill().map(() => Array(w).fill('.')), width: w, height: h, rooms: [] };
     }
     function computeFOV(x, y, radius) {
@@ -370,7 +363,6 @@
       }
     }
     function getCameraOffset(playerX, playerY) {
-      // Center view on player, clamped to map edges
       let offsetX = Math.max(0, Math.min(playerX - Math.floor(VIEW_WIDTH / 2), WIDTH - VIEW_WIDTH));
       let offsetY = Math.max(0, Math.min(playerY - Math.floor(VIEW_HEIGHT / 2), HEIGHT - VIEW_HEIGHT));
       return { offsetX, offsetY };
@@ -432,7 +424,6 @@
       }
     }
     function initGame(restart = false) {
-      console.log("Initializing game...");
       if (restart) {
         player = {
           x: 0, y: 0, glyph: '@', color: '#fff',
@@ -449,12 +440,10 @@
       if (dungeon.rooms.length > 0) {
         player.x = dungeon.rooms[0].cx;
         player.y = dungeon.rooms[0].cy;
-        console.log(`Player placed at room center: (${player.x}, ${player.y})`);
       } else {
         let pos = findWalkable();
         player.x = pos.x;
         player.y = pos.y;
-        console.warn(`No rooms, player placed at: (${player.x}, ${player.y})`);
       }
       player.hp = player.maxHp;
       player.poisonTurns = 0;
@@ -472,7 +461,6 @@
     function gameLoop() {
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      let tilesDrawn = 0;
       const { offsetX, offsetY } = getCameraOffset(player.x, player.y);
       
       for (let viewY = 0; viewY < VIEW_HEIGHT; viewY++) {
@@ -483,10 +471,8 @@
           if (!explored[mapY][mapX]) continue;
           ctx.fillStyle = visible[mapY][mapX] ? '#0f0' : '#050';
           ctx.fillText(dungeon.tiles[mapY][mapX], viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE);
-          tilesDrawn++;
         }
       }
-      console.log(`gameLoop: ${tilesDrawn} tiles drawn (viewport ${offsetX},${offsetY})`);
 
       for (let trap of traps) {
         if (trap.x < offsetX || trap.x >= offsetX + VIEW_WIDTH || trap.y < offsetY || trap.y >= offsetY + VIEW_HEIGHT) continue;
@@ -509,9 +495,11 @@
           ctx.fillText(monster.glyph, (monster.x - offsetX) * TILE_SIZE, (monster.y - offsetY + 1) * TILE_SIZE);
         }
       }
-      // Player is always centered, so draw at fixed position
-      ctx.fillStyle = player.color;
-      ctx.fillText(player.glyph, Math.floor(VIEW_WIDTH / 2) * TILE_SIZE, Math.floor(VIEW_HEIGHT / 2 + 1) * TILE_SIZE);
+      if (player.x >= offsetX && player.x < offsetX + VIEW_WIDTH && 
+          player.y >= offsetY && player.y < offsetY + VIEW_HEIGHT) {
+        ctx.fillStyle = player.color;
+        ctx.fillText(player.glyph, (player.x - offsetX) * TILE_SIZE, (player.y - offsetY + 1) * TILE_SIZE);
+      }
     }
     function log(msg, cls = '') {
       const div = document.getElementById('log');
@@ -854,7 +842,6 @@
       canvas.height = (w / VIEW_WIDTH) * VIEW_HEIGHT;
       TILE_SIZE = w / VIEW_WIDTH;
       ctx.font = `${TILE_SIZE}px monospace`;
-      console.log(`Canvas resized: ${canvas.width}x${canvas.height}, TILE_SIZE: ${TILE_SIZE} (map ${WIDTH}x${HEIGHT})`);
       gameLoop();
     }
     window.addEventListener('resize', resizeCanvas);
