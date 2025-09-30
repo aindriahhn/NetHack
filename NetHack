@@ -419,9 +419,8 @@ function spawnMonsters(count) {
     isStairs: true 
   });
   
-  // Calculate max item type based on depth (skip stairs at index 0)
-  let maxItemType = Math.min(ITEM_TYPES.length - 1, Math.floor((dungeonLevel - 1) / 2) + 1);
-  
+  // Random index from 1 to maxItemType (inclusive)
+let type = ITEM_TYPES[1 + Math.floor(Math.random() * maxItemType)];
   for (let i = 0; i < count; i++) {
     // Start from index 1 to skip stairs
     let type = ITEM_TYPES[Math.floor(Math.random() * (maxItemType - 1 + 1)) + 1];
