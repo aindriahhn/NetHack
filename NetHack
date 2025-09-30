@@ -239,13 +239,13 @@
       { glyph: 'D', name: 'dragon', color: '#f00', hp: 30, damage: 8, xp: 50, defense: 20, hitChance: 95 }
     ];
     const ITEM_TYPES = [
-      { glyph: ')', name: 'dagger', color: '#ccc', damage: 3 },
-      { glyph: ')', name: 'sword', color: '#aaf', damage: 5 },
-      { glyph: ')', name: 'axe', color: '#faa', damage: 7 },
-      { glyph: '$', name: 'gold', color: '#ff0', value: 0 },
-      { glyph: '!', name: 'potion', color: '#0ff', heal: 5 },
-      { glyph: '>', name: 'stairs', color: '#fff', isStairs: true }
-    ];
+  { glyph: '>', name: 'stairs', color: '#fff', isStairs: true },
+  { glyph: ')', name: 'dagger', color: '#ccc', damage: 3 },
+  { glyph: '$', name: 'gold', color: '#ff0', value: 0 },
+  { glyph: '!', name: 'potion', color: '#0ff', heal: 5 },
+  { glyph: ')', name: 'sword', color: '#aaf', damage: 5 },
+  { glyph: ')', name: 'axe', color: '#faa', damage: 7 }
+];
     const TRAP_TYPES = [
       { glyph: '^', name: 'spike trap', color: '#f00', damage: 5, hidden: true },
       { glyph: '^', name: 'teleporter', color: '#0ff', teleport: true, hidden: true },
@@ -405,21 +405,34 @@ function spawnMonsters(count) {
   }
 }
     function spawnItems(count) {
-      items = [];
-      let pos = findWalkable();
-      items.push({ ...pos, glyph: '>', color: '#fff', name: 'stairs', isStairs: true });
-      const spawnableItems = ITEM_TYPES.filter(item => !item.isStairs);
-      for (let i = 0; i < count; i++) {
-        let type = spawnableItems[Math.floor(Math.random() * spawnableItems.length)];
-        pos = findWalkable();
-        let item = { ...pos, glyph: type.glyph, color: type.color, name: type.name };
-        if (type.damage) item.damage = type.damage;
-        if (type.value !== undefined) item.value = Math.floor(Math.random() * 50) + 10;
-        if (type.heal) item.heal = type.heal;
-        items.push(item);
-      }
-    }
-    function spawnTraps(count) {
+  items = [];
+  
+  // Always spawn stairs (index 0)
+  let stairsPos = findWalkable();
+  let stairsType = ITEM_TYPES[0];
+  items.push({ 
+    x: stairsPos.x, 
+    y: stairsPos.y, 
+    glyph: stairsType.glyph, 
+    color: stairsType.color, 
+    name: stairsType.name, 
+    isStairs: true 
+  });
+  
+  // Calculate max item type based on depth (skip stairs at index 0)
+  let maxItemType = Math.min(ITEM_TYPES.length - 1, Math.floor((dungeonLevel - 1) / 2) + 1);
+  
+  for (let i = 0; i < count; i++) {
+    // Start from index 1 to skip stairs
+    let type = ITEM_TYPES[Math.floor(Math.random() * (maxItemType - 1 + 1)) + 1];
+    let pos = findWalkable();
+    let item = { x: pos.x, y: pos.y, glyph: type.glyph, color: type.color, name: type.name };
+    if (type.damage) item.damage = type.damage;
+    if (type.value !== undefined) item.value = Math.floor(Math.random() * 50) + 10;
+    if (type.heal) item.heal = type.heal;
+    items.push(item);
+  }
+}    function spawnTraps(count) {
       traps = [];
       for (let i = 0; i < count; i++) {
         let type = TRAP_TYPES[Math.floor(Math.random() * TRAP_TYPES.length)];
