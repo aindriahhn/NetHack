@@ -211,8 +211,10 @@
     const canvas = document.getElementById("nethack");
     const ctx = canvas.getContext("2d");
     let TILE_SIZE = 16;
-    const WIDTH = 40;
-    const HEIGHT = 30;
+    const WIDTH = 80;  // Larger map width
+const HEIGHT = 60; // Larger map height
+const VIEW_WIDTH = 40;  // Tiles visible horizontally
+const VIEW_HEIGHT = 30; // Tiles visible vertically
     let player = {
       x: 0, y: 0, glyph: '@', color: '#fff',
       hp: 20, maxHp: 20, level: 1, xp: 0,
@@ -462,16 +464,50 @@
       gameLoop();
     }
     function gameLoop() {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      let tilesDrawn = 0;
-      for (let y = 0; y < HEIGHT; y++) {
-        for (let x = 0; x < WIDTH; x++) {
-          if (!explored[y][x]) continue;
-          ctx.fillStyle = visible[y][x] ? '#0f0' : '#050';
-          ctx.fillText(dungeon.tiles[y][x], x * TILE_SIZE, (y + 1) * TILE_SIZE);
-          tilesDrawn++;
-        }
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  let tilesDrawn = 0;
+  const { offsetX, offsetY } = getCameraOffset(player.x, player.y);
+  
+  for (let viewY = 0; viewY < VIEW_HEIGHT; viewY++) {
+    for (let viewX = 0; viewX < VIEW_WIDTH; viewX++) {
+      let mapX = offsetX + viewX;
+      let mapY = offsetY + viewY;
+      if (mapX >= WIDTH || mapY >= HEIGHT) continue;
+      if (!explored[mapY][mapX]) continue;
+      ctx.fillStyle = visible[mapY][mapX] ? '#0f0' : '#050';
+      ctx.fillText(dungeon.tiles[mapY][mapX], viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE);
+      tilesDrawn++;
+    }
+  }
+  console.log(`gameLoop: ${tilesDrawn} tiles drawn (viewport ${offsetX},${offsetY})`);
+
+  // Similar updates for traps, items, monsters (use mapX/mapY for visibility checks, viewX/viewY for drawing)
+  for (let trap of traps) {
+    if (trap.x < offsetX || trap.x >= offsetX + VIEW_WIDTH || trap.y < offsetY || trap.y >= offsetY + VIEW_HEIGHT) continue;
+    if (visible[trap.y][trap.x] && !trap.hidden) {
+      ctx.fillStyle = trap.color;
+      ctx.fillText(trap.glyph, (trap.x - offsetX) * TILE_SIZE, (trap.y - offsetY + 1) * TILE_SIZE);
+    }
+  }
+  for (let item of items) {
+    if (item.x < offsetX || item.x >= offsetX + VIEW_WIDTH || item.y < offsetY || item.y >= offsetY + VIEW_HEIGHT) continue;
+    if (visible[item.y][item.x]) {
+      ctx.fillStyle = item.color;
+      ctx.fillText(item.glyph, (item.x - offsetX) * TILE_SIZE, (item.y - offsetY + 1) * TILE_SIZE);
+    }
+  }
+  for (let monster of monsters) {
+    if (monster.x < offsetX || monster.x >= offsetX + VIEW_WIDTH || monster.y < offsetY || monster.y >= offsetY + VIEW_HEIGHT) continue;
+    if (visible[monster.y][monster.x]) {
+      ctx.fillStyle = monster.color;
+      ctx.fillText(monster.glyph, (monster.x - offsetX) * TILE_SIZE, (monster.y - offsetY + 1) * TILE_SIZE);
+    }
+  }
+  // Player is always centered, so draw at fixed position
+  ctx.fillStyle = player.color;
+  ctx.fillText(player.glyph, Math.floor(VIEW_WIDTH / 2) * TILE_SIZE, Math.floor(VIEW_HEIGHT / 2 + 1) * TILE_SIZE);
+}
       }
       console.log(`gameLoop: ${tilesDrawn} tiles drawn`);
       for (let trap of traps) {
@@ -831,13 +867,14 @@
     });
     document.getElementById('restart-btn').addEventListener('click', () => initGame(true));
     function resizeCanvas() {
-      const w = window.innerWidth < 768 ? window.innerWidth - 40 : 640;
-      canvas.width = w;
-      canvas.height = (w / WIDTH) * HEIGHT;
-      TILE_SIZE = w / WIDTH;
-      ctx.font = `${TILE_SIZE}px monospace`;
-      console.log(`Canvas resized: ${canvas.width}x${canvas.height}, TILE_SIZE: ${TILE_SIZE}`);
-      gameLoop();
+  const w = window.innerWidth < 768 ? window.innerWidth - 40 : 640;
+  canvas.width = w;
+  canvas.height = (w / VIEW_WIDTH) * VIEW_HEIGHT;  // Fit viewport
+  TILE_SIZE = w / VIEW_WIDTH;
+  ctx.font = `${TILE_SIZE}px monospace`;
+  console.log(`Canvas resized: ${canvas.width}x${canvas.height}, TILE_SIZE: ${TILE_SIZE} (map ${WIDTH}x${HEIGHT})`);
+  gameLoop();
+}
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
