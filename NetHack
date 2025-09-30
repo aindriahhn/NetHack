@@ -380,9 +380,7 @@
       }
       return { x: Math.min(WIDTH - 2, player.x + 1), y: player.y };
     }
-    function spawnMonsters(count) {
-      monsters = [];
-      function spawnMonsters(count) {
+function spawnMonsters(count) {
   monsters = [];
   
   // Calculate max monster type based on depth
