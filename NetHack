@@ -1,46 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NetHack Roguelike</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>NetHack Roguelike (Mobile)</title>
   <style>
     body {
       margin: 0;
-      padding: 10px;
+      padding: 5px;
       background: #000;
       color: #0f0;
       font-family: 'Courier New', monospace;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    h1 {
+      color: #0f0;
+      border-bottom: 2px solid #0f0;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+      font-weight: normal;
+      font-size: 1.5rem;
+      text-align: center;
     }
     #game-container {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      max-width: 100%;
+      width: 100%;
+      max-width: 640px;
     }
     canvas {
       border: 2px solid #0f0;
       background: #000;
       image-rendering: pixelated;
+      width: 100%;
+      height: auto;
+      max-width: 100%;
     }
     #stats, #inventory, #log {
-      padding: 10px;
+      padding: 8px;
       border: 2px solid #0f0;
       background: #001100;
-      font-size: 12px;
+      font-size: 10px;
+      line-height: 1.4;
+      border-radius: 4px;
     }
     #log {
-      max-height: 150px;
+      max-height: 120px;
       overflow-y: auto;
     }
     .log-entry { margin: 2px 0; }
     .damage { color: #f00; }
     .pickup { color: #ff0; }
     .death { color: #f0f; }
+    .info { color: #0ff; }
     #inventory {
-      max-height: 150px;
+      max-height: 140px;
       overflow-y: auto;
     }
     #inventory-list {
@@ -50,32 +69,40 @@
       margin-top: 5px;
     }
     .inventory-btn {
-      background: #001100;
+      background: #002200;
       border: 2px solid #0f0;
       color: #0f0;
+      font-size: 10px;
       font-family: 'Courier New', monospace;
-      font-size: 12px;
-      padding: 6px;
       cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
       transition: all 0.1s;
     }
-    .inventory-btn:hover {
-      background: #002200;
-      border-color: #0ff;
+    .inventory-btn:active { background: #003300; border-color: #0ff; }
+    .action-mode-selected {
+      background: #440 !important;
+      border-color: #ff0 !important;
+      color: #000 !important;
+    }
+    #controls-group {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 10px 0;
     }
     #controls {
       display: grid;
-      grid-template-columns: repeat(3, 50px);
-      grid-template-rows: repeat(3, 50px);
-      gap: 5px;
-      margin: 0 auto;
-      width: fit-content;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 3px;
     }
     .control-btn {
-      background: #001100;
+      background: #002200;
       border: 2px solid #0f0;
       color: #0f0;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       cursor: pointer;
       user-select: none;
@@ -83,119 +110,212 @@
       align-items: center;
       justify-content: center;
       transition: all 0.1s;
+      width: 50px;
+      height: 50px;
+      min-width: 40px;
+      min-height: 40px;
+      border-radius: 6px;
     }
-    .control-btn:hover {
-      background: #002200;
-      border-color: #0ff;
+    .control-btn[data-dir="wait"] { background: #333; }
+    .control-btn:active { background: #003300; border-color: #0ff; }
+    #action-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      align-items: stretch;
+      justify-content: flex-start;
+      height: 100%;
     }
-    .control-btn:active {
-      background: #003300;
-    }
-    #toggle-action {
+    .action-btn {
       background: #002200;
       border: 2px solid #0f0;
       color: #0f0;
-      padding: 10px 20px;
       font-size: 14px;
       font-family: 'Courier New', monospace;
       cursor: pointer;
-      margin: 10px auto;
-      width: fit-content;
+      padding: 8px 10px;
       border-radius: 4px;
       transition: all 0.2s;
+      min-width: 100px;
+      text-align: center;
+      font-weight: bold;
     }
-    #toggle-action:hover, #toggle-action:active {
-      background: #003300;
-      border-color: #0ff;
-      color: #0ff;
-    }
-    #restart-modal {
-      position: fixed;
-      top: 0;
-      left: 0;
+    #toggle-action.drop-mode { background: #400; border-color: #f00; }
+    #throw-mode-btn.action-mode,
+    #look-btn.action-mode { background: #004400; border-color: #0ff; }
+    .action-btn:active { background: #003300; border-color: #0ff; }
+
+    #monster-guide {
+      padding: 10px;
+      border: 2px solid #0f0;
+      background: #001100;
+      font-size: 12px;
+      margin-top: 10px;
       width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.9);
-      display: none;
-      align-items: center;
+      max-width: 640px;
+      box-sizing: border-box;
+      border-radius: 4px;
+    }
+    #monster-guide h2 {
+      margin: 0 0 10px 0;
+      text-align: center;
+      font-weight: normal;
+      font-size: 14px;
+    }
+    #monster-guide ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
       justify-content: center;
+      gap: 8px;
+    }
+    #monster-guide li {
+      background: #002200;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    @media (max-width: 450px) {
+      #controls { grid-template-columns: repeat(3, 1fr); width: 150px; height: 150px; }
+      .control-btn { width: 100%; height: 100%; }
+      #action-btns { flex-grow: 1; }
+    }
+
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: none; align-items: center; justify-content: center;
       z-index: 1000;
     }
-    #restart-modal.show {
-      display: flex;
-    }
+    .modal.show { display: flex; }
     .modal-content {
       background: #001100;
-      border: 3px solid #f00;
-      padding: 20px;
-      text-align: center;
-      max-width: 90%;
-      width: 300px;
+      border: 3px solid #0f0;
+      padding: 20px; text-align: center;
+      max-width: 90%; width: 340px; border-radius: 8px;
     }
-    .modal-content h2 {
-      color: #f00;
-      margin: 0 0 15px 0;
-      font-size: 24px;
+    .modal-content h2 { color: #0f0; margin: 0 0 15px 0; font-size: 24px; }
+    .modal-stats { margin: 15px 0; color: #0f0; font-size: 14px; line-height: 1.6; }
+    .modal-btn {
+      background: #002200; border: 2px solid #0f0; color: #0f0;
+      padding: 10px 20px; font-size: 16px; font-family: 'Courier New', monospace;
+      cursor: pointer; border-radius: 4px; margin: 5px;
     }
-    .modal-stats {
-      margin: 15px 0;
-      color: #0f0;
-      font-size: 14px;
-      line-height: 1.6;
+    .modal-btn:active { background: #003300; }
+    #restart-modal .modal-content { border-color: #f00; }
+    #restart-modal h2 { color: #f00; }
+    .role-desc { font-size: 12px; margin-bottom: 15px; color: #ccc; }
+
+    /* Debug overlay */
+    #debug-overlay {
+      position: fixed; bottom: 8px; right: 8px;
+      background: rgba(0, 17, 0, 0.85);
+      border: 1px solid #0f0; border-radius: 4px;
+      padding: 6px 8px; font-size: 10px; color: #0f0; display: none;
+      z-index: 1100;
     }
-    #restart-btn {
+    #debug-toggle {
       background: #002200;
       border: 2px solid #0f0;
       color: #0f0;
-      padding: 10px 20px;
-      font-size: 14px;
-      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      padding: 6px 8px;
+      border-radius: 4px;
       cursor: pointer;
-    }
-    #restart-btn:hover {
-      background: #003300;
-    }
-    @media (max-width: 768px) {
-      body { padding: 5px; }
-      #game-container { flex-direction: column; align-items: center; }
-      canvas { width: 100%; max-width: 100%; height: auto; }
-      #stats, #inventory, #log { width: 100%; max-width: 100%; font-size: 10px; }
-      #controls { grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 3px; }
-      .control-btn { font-size: 16px; }
-      .inventory-btn { font-size: 10px; padding: 4px; }
-      #toggle-action { font-size: 12px; padding: 8px 16px; }
-      #log { max-height: 100px; }
+      margin-top: 6px;
+      font-family: 'Courier New', monospace;
     }
   </style>
 </head>
 <body>
+  <h1>NetHack Style Roguelike (Mobile)</h1>
   <div id="game-container">
+    <div id="log">
+      <div class="log-entry">Welcome! Use the on-screen controls to move. Find stairs (>) to descend!</div>
+    </div>
     <canvas id="nethack" width="640" height="480"></canvas>
     <div id="stats">
       <div>HP: <span id="hp">20/20</span> | Lvl: <span id="level">1</span> | XP: <span id="xp">0</span> | Depth: <span id="depth">1</span></div>
-      <div>Weapon: <span id="weapon">Fists</span> | Gold: <span id="gold">0</span> | <span id="status">Normal</span></div>
+      <div>DR: <span id="dr">1</span> | Dodge: <span id="dodge">5%</span> | AP: <span id="ap">100/100</span> | Gold: <span id="gold">0</span></div>
+      <div>Weapon: <span id="weapon">Fists</span> | Armor: <span id="armor">None</span></div>
+      <div>Status: <span id="status">Normal</span> | Hunger: <span id="hunger">Satiated</span></div>
+      <button id="debug-toggle">Debug</button>
+    </div>
+    <div id="controls-group">
+      <div id="controls">
+        <button class="control-btn" data-dir="nw">↖</button>
+        <button class="control-btn" data-dir="n">↑</button>
+        <button class="control-btn" data-dir="ne">↗</button>
+        <button class="control-btn" data-dir="w">←</button>
+        <button class="control-btn" data-dir="wait">•</button>
+        <button class="control-btn" data-dir="e">→</button>
+        <button class="control-btn" data-dir="sw">↙</button>
+        <button class="control-btn" data-dir="s">↓</button>
+        <button class="control-btn" data-dir="se">↘</button>
+      </div>
+      <div id="action-btns">
+        <button id="look-btn" class="action-btn">🔍 Look Mode</button>
+        <button id="throw-mode-btn" class="action-btn">🎯 Throw Mode</button>
+        <button id="toggle-action" class="action-btn">Use/Drop Mode</button>
+        <button id="actions-btn" class="action-btn">🙏 Actions</button>
+        <button id="save-btn" class="action-btn">💾 Save</button>
+        <button id="load-btn" class="action-btn">📂 Load</button>
+      </div>
     </div>
     <div id="inventory">
-      <div>Inventory (1-5 use | 'd' + 1-5 drop):</div>
+      <div>Inventory (Tap to Use/Drop/Throw):</div>
       <div id="inventory-list"></div>
     </div>
-    <div id="controls">
-      <button class="control-btn" data-dir="nw">↖</button>
-      <button class="control-btn" data-dir="n">↑</button>
-      <button class="control-btn" data-dir="ne">↗</button>
-      <button class="control-btn" data-dir="w">←</button>
-      <button class="control-btn" data-dir="wait">•</button>
-      <button class="control-btn" data-dir="e">→</button>
-      <button class="control-btn" data-dir="sw">↙</button>
-      <button class="control-btn" data-dir="s">↓</button>
-      <button class="control-btn" data-dir="se">↘</button>
-    </div>
-    <button id="toggle-action">Drop Mode (Off)</button>
-    <div id="log">
-      <div class="log-entry">Welcome! Arrow keys move, Space waits. Find stairs (>) to descend!</div>
+  </div>
+
+  <div id="monster-guide">
+    <h2>Monster Guide</h2>
+    <ul>
+      <li>(r) Rat <span style="background: #964; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(b) Bat (erratic) <span style="background: #555; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(g) Goblin (equips) <span style="background: #0a0; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(k) Kobold (coward) <span style="background: #a52a2a; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(o) Orc <span style="background: #f80; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(s) Skeleton (resists) <span style="background: #eee; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(j) Slime (divides) <span style="background: #9f9; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(T) Troll <span style="background: #0f0; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(O) Ogre <span style="background: #f99; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(D) Dragon <span style="background: #f00; width: 10px; height: 10px; display: inline-block;"></span></li>
+      <li>(L) Lich (ranged) <span style="background: #a0f; width: 10px; height: 10px; display: inline-block;"></span></li>
+    </ul>
+  </div>
+
+  <div id="char-select-modal" class="modal">
+    <div class="modal-content">
+      <h2>Choose your Role</h2>
+      <div class="role-desc">Each role starts with different stats and gear.</div>
+      <button id="role-barbarian" class="modal-btn">Barbarian</button>
+      <button id="role-wizard" class="modal-btn">Wizard</button>
+      <button id="role-rogue" class="modal-btn">Rogue</button>
     </div>
   </div>
-  <div id="restart-modal">
+
+  <div id="actions-modal" class="modal">
+    <div class="modal-content">
+      <h2>Actions</h2>
+      <button class="modal-btn" data-action="search">Search (100 AP)</button>
+      <button class="modal-btn" data-action="pray">Pray (100 AP)</button>
+      <button class="modal-btn" data-action="kick">Kick (120 AP)</button>
+      <button class="modal-btn" data-action="engrave">Engrave 'Elbereth' (150 AP)</button>
+      <button class="modal-btn" data-action="zap">Zap Wand</button>
+      <button class="modal-btn" data-action="apply">Apply Tool</button>
+      <button class="modal-btn" data-action="close">Close</button>
+    </div>
+  </div>
+
+  <div id="restart-modal" class="modal">
     <div class="modal-content">
       <h2>You Died</h2>
       <div class="modal-stats">
@@ -204,10 +324,14 @@
         <div>Kills: <span id="final-kills">0</span></div>
         <div>Turns: <span id="final-turns">0</span></div>
       </div>
-      <button id="restart-btn">Play Again</button>
+      <button id="restart-btn" class="modal-btn">Play Again</button>
     </div>
   </div>
+
+  <div id="debug-overlay"></div>
+
   <script>
+    // ---- Constants & Globals ----
     const canvas = document.getElementById("nethack");
     const ctx = canvas.getContext("2d");
     let TILE_SIZE = 16;
@@ -215,15 +339,25 @@
     const HEIGHT = 60;
     const VIEW_WIDTH = 40;
     const VIEW_HEIGHT = 30;
-    let player = {
-      x: 0, y: 0, glyph: '@', color: '#fff',
-      hp: 20, maxHp: 20, level: 1, xp: 0,
-      weapon: null, gold: 0, inventory: [],
-      inventorySize: 5, inventoryMaxItems: 20,
-      poisonTurns: 0, hitChance: 70
+
+    const AP_COSTS = {
+      MOVE: 100, ATTACK: 100, WAIT: 0, SEARCH: 100,
+      USE_ITEM: 50, THROW: 100, OPEN_DOOR: 50, BASH_DOOR: 150,
+      KICK: 120, PRAY: 100, ENGRAVE: 150, ZAP: 100, APPLY: 250
     };
-    let dungeon = { tiles: [], width: WIDTH, height: HEIGHT, rooms: [] };
+
+    const LEVEL_XP_REQUIREMENTS = [0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200, 4000];
+
+    function rollDice(num, sides, modifier = 0) {
+      let result = modifier;
+      for (let i = 0; i < num; i++) result += Math.floor(Math.random() * sides) + 1;
+      return Math.max(1, result);
+    }
+
+    let player;
+    let dungeon = { tiles: [], width: WIDTH, height: HEIGHT, rooms: [], features: [], engravings: [] };
     let monsters = [];
+    let pets = [];
     let items = [];
     let traps = [];
     let turn = 0;
@@ -232,92 +366,211 @@
     let itemAction = 'use';
     let visible = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
     let explored = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
-    const MONSTER_TYPES = [
-      { glyph: 'g', name: 'goblin', color: '#0a0', hp: 5, damage: 2, xp: 5, defense: 5, hitChance: 80 },
-      { glyph: 'o', name: 'orc', color: '#f80', hp: 8, damage: 3, xp: 10, defense: 10, hitChance: 85 },
-      { glyph: 'T', name: 'troll', color: '#0f0', hp: 15, damage: 5, xp: 20, defense: 15, hitChance: 90 },
-      { glyph: 'D', name: 'dragon', color: '#f00', hp: 30, damage: 8, xp: 50, defense: 20, hitChance: 95 }
+
+    let itemVisualToTypeMap = {};
+    let needsRedraw = true;
+    let currentActionContext = null;
+
+    const OFFLINE_SAVE_KEY = 'SonNetHackSaveV2';
+    let lastAutosaveTurn = 0;
+
+    const PET_TYPES = [
+      { glyph: 'd', name: 'little dog', color: '#ccc', hp: 10, damage: 2, defense: 5, hitChance: 75, apRegen: 110 }
     ];
+
+    const MONSTER_TYPES = [
+      { glyph: 'r', name: 'rat', color: '#964', hp: 3, damage: 1, xp: 3, defense: 0, hitChance: 70, depth: 1, apRegen: 120 },
+      { glyph: 'b', name: 'bat', color: '#555', hp: 4, damage: 1, xp: 4, defense: 5, hitChance: 75, depth: 1, apRegen: 150, behavior: 'erratic' },
+      { glyph: 'g', name: 'goblin', color: '#0a0', hp: 5, damage: 2, xp: 5, defense: 5, hitChance: 80, depth: 1, apRegen: 100, behavior: 'equipper' },
+      { glyph: 'k', name: 'kobold', color: '#a52a2a', hp: 4, damage: 1, xp: 4, defense: 2, hitChance: 75, depth: 1, apRegen: 110, behavior: 'coward' },
+      { glyph: 'o', name: 'orc', color: '#f80', hp: 8, damage: 3, xp: 10, defense: 10, hitChance: 85, depth: 2, apRegen: 90 },
+      { glyph: 's', name: 'skeleton', color: '#eee', hp: 10, damage: 4, xp: 15, defense: 12, hitChance: 88, depth: 2, apRegen: 80, resists: 'piercing' },
+      { glyph: 'j', name: 'slime', color: '#9f9', hp: 12, damage: 2, xp: 12, defense: 5, hitChance: 80, depth: 2, apRegen: 70, behavior: 'divider' },
+      { glyph: 'T', name: 'troll', color: '#0f0', hp: 15, damage: 5, xp: 20, defense: 15, hitChance: 90, depth: 3, apRegen: 85 },
+      { glyph: 'O', name: 'ogre', color: '#f99', hp: 25, damage: 7, xp: 40, defense: 18, hitChance: 92, depth: 4, apRegen: 75 },
+      { glyph: 'D', name: 'dragon', color: '#f00', hp: 30, damage: 8, xp: 50, defense: 20, hitChance: 95, depth: 5, apRegen: 110 },
+      { glyph: 'L', name: 'lich', color: '#a0f', hp: 40, damage: 10, xp: 100, defense: 25, hitChance: 98, depth: 6, apRegen: 120, behavior: 'ranged' }
+    ];
+
     const ITEM_TYPES = [
-  { glyph: '>', name: 'stairs', color: '#fff', isStairs: true },
-  { glyph: ')', name: 'dagger', color: '#ccc', damage: 3 },
-  { glyph: '$', name: 'gold', color: '#ff0', value: 0 },
-  { glyph: '!', name: 'potion', color: '#0ff', heal: 5 },
-  { glyph: ')', name: 'sword', color: '#aaf', damage: 5 },
-  { glyph: ')', name: 'axe', color: '#faa', damage: 7 }
-];
+      { glyph: '>', name: 'stairs', color: '#fff', isStairs: true, identified: true, depth: 1 },
+      { glyph: ')', baseName: 'dagger', color: '#ccc', damage: 3, visualName: 'short blade', depth: 1, type: 'weapon', damageType: 'piercing' },
+      { glyph: ')', baseName: 'mace', color: '#f94', damage: 4, visualName: 'club', depth: 1, type: 'weapon', damageType: 'blunt' },
+      { glyph: ')', baseName: 'sword', color: '#aaf', damage: 5, visualName: 'long blade', depth: 2, type: 'weapon', damageType: 'slashing' },
+      { glyph: ')', baseName: 'spear', color: '#cc9', damage: 6, visualName: 'pointed stick', depth: 3, type: 'weapon', damageType: 'piercing' },
+      { glyph: ')', baseName: 'axe', color: '#faa', damage: 7, visualName: 'heavy axe', depth: 4, type: 'weapon', damageType: 'slashing' },
+      { glyph: '[', baseName: 'leather armor', color: '#8B4513', defense: 2, visualName: 'hide armor', depth: 1, type: 'armor' },
+      { glyph: '[', baseName: 'chain mail', color: '#aaa', defense: 4, visualName: 'metal rings', depth: 3, type: 'armor' },
+      { glyph: '[', baseName: 'plate mail', color: '#ddd', defense: 6, visualName: 'shiny armor', depth: 5, type: 'armor' },
+      { glyph: '!', baseName: 'potion of healing', color: '#0ff', heal: 5, visualName: 'potion of blue liquid', depth: 1, type: 'potion' },
+      { glyph: '!', baseName: 'potion of strength', color: '#f00', effect: {strength: 20}, visualName: 'potion of red liquid', depth: 2, type: 'potion' },
+      { glyph: '!', baseName: 'potion of confusion', color: '#0f0', effect: {confusion: 15}, visualName: 'potion of green liquid', depth: 3, type: 'potion' },
+      { glyph: '!', baseName: 'potion of extra healing', color: '#f0f', heal: 10, visualName: 'potion of pink liquid', depth: 4, type: 'potion' },
+      { glyph: '!', baseName: 'potion of speed', color: '#ff0', effect: {speed: 10}, visualName: 'potion of yellow liquid', depth: 3, type: 'potion' },
+      { glyph: '?', baseName: 'scroll of identify', color: '#ff0', effect: {identify: true}, visualName: 'unreadable scroll', depth: 1, type: 'scroll' },
+      { glyph: '?', baseName: 'scroll of teleportation', color: '#0ff', effect: {teleport: true}, visualName: 'faded scroll', depth: 2, type: 'scroll' },
+      { glyph: '?', baseName: 'scroll of magic mapping', color: '#f0f', effect: {magicMap: true}, visualName: 'glowing scroll', depth: 4, type: 'scroll' },
+      { glyph: '?', baseName: 'scroll of remove curse', color: '#fff', effect: {removeCurse: true}, visualName: 'plain scroll', depth: 2, type: 'scroll' },
+      { glyph: '/', baseName: 'wand of striking', color: '#f80', charges: 5, visualName: 'glass wand', depth: 2, type: 'wand', effect: 'strike' },
+      { glyph: '/', baseName: 'wand of teleportation', color: '#a0f', charges: 3, visualName: 'iron wand', depth: 4, type: 'wand', effect: 'teleport' },
+      { glyph: '%', baseName: 'food ration', color: '#c60', nutrition: 500, visualName: 'food ration', depth: 1, type: 'food', identified: true },
+      { glyph: '%', baseName: 'slime mold', color: '#9f9', nutrition: 100, visualName: 'slime mold', depth: 2, type: 'food', identified: true },
+      { glyph: '(', baseName: 'pick-axe', color: '#f60', visualName: 'heavy hammer', depth: 3, type: 'tool' },
+      { glyph: '$', name: 'gold', color: '#ff0', value: 0, identified: true, depth: 1, type: 'gold' },
+      { glyph: '(', baseName: 'skeleton key', color: '#ccc', name: 'key', identified: true, depth: 2, type: 'key' }
+    ];
+  // ---- Enemy-only projectiles (never spawn randomly) ----
+    const ENEMY_ITEMS = {
+      dart:    { glyph: '*', name: 'dart', color: '#aaa', type: 'enemyAmmo', damage: 3, despawnOnMiss: true },
+      boulder: { glyph: 'O', name: 'boulder', color: '#888', type: 'enemyAmmo', damage: 6, despawnOnMiss: true }
+      
+    };
     const TRAP_TYPES = [
       { glyph: '^', name: 'spike trap', color: '#f00', damage: 5, hidden: true },
       { glyph: '^', name: 'teleporter', color: '#0ff', teleport: true, hidden: true },
-      { glyph: '^', name: 'poison trap', color: '#0f0', poison: 3, hidden: true }
+      { glyph: '^', name: 'poison trap', color: '#0f0', poison: 3, hidden: true },
+      { glyph: '^', name: 'dart launcher', color: '#aaa',
+    hasDart: true, ap: 0, apRegen: 50, maxAp: 100 },
+     { glyph: '^', name: 'boulder launcher', color: '#888',
+    hasBoulder: true, ap: 0, apRegen: 10, maxAp: 100 } 
     ];
-    function generateDungeon(w, h) {
-      for (let attempt = 0; attempt < 10; attempt++) {
-        let tiles = Array(h).fill().map(() => Array(w).fill('#'));
-        let rooms = [];
-        for (let i = 0; i < 12; i++) {
-          let rw = Math.floor(Math.random() * 6) + 4;
-          let rh = Math.floor(Math.random() * 4) + 3;
-          let rx = Math.floor(Math.random() * (w - rw - 2)) + 1;
-          let ry = Math.floor(Math.random() * (h - rh - 2)) + 1;
-          let overlap = rooms.some(r => 
-            rx < r.x + r.w + 1 && rx + rw + 1 > r.x &&
-            ry < r.y + r.h + 1 && ry + rh + 1 > r.y
-          );
-          if (!overlap) {
-            for (let y = ry; y < ry + rh; y++) {
-              for (let x = rx; x < rx + rw; x++) {
-                tiles[y][x] = '.';
-              }
-            }
-            rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw/2), cy: Math.floor(ry + rh/2) });
-          }
-        }
-        if (rooms.length < 3) continue;
-        let connected = new Set([0]);
-        while (connected.size < rooms.length) {
-          let minDist = Infinity;
-          let bestPair = null;
-          for (let i of connected) {
-            for (let j = 0; j < rooms.length; j++) {
-              if (!connected.has(j)) {
-                let dist = Math.hypot(rooms[i].cx - rooms[j].cx, rooms[i].cy - rooms[j].cy);
-                if (dist < minDist) {
-                  minDist = dist;
-                  bestPair = [i, j];
-                }
-              }
-            }
-          }
-          if (bestPair) {
-            let [i, j] = bestPair;
-            let x1 = rooms[i].cx, y1 = rooms[i].cy;
-            let x2 = rooms[j].cx, y2 = rooms[j].cy;
-            while (x1 !== x2) {
-              tiles[y1][x1] = '.';
-              x1 += x1 < x2 ? 1 : -1;
-            }
-            while (y1 !== y2) {
-              tiles[y1][x1] = '.';
-              y1 += y1 < y2 ? 1 : -1;
-            }
-            connected.add(j);
-          } else break;
-        }
-        if (connected.size === rooms.length) {
-          return { tiles, width: w, height: h, rooms };
-        }
+    // ---- Roles ----
+    const PLAYER_ROLES = {
+      Barbarian: {
+        hp: 30, maxHp: 30, apRegen: 100, hitChance: 80,
+        startingInventory: [ { baseName: 'axe', identified: true }, { baseName: 'food ration', identified: true } ]
+      },
+      Wizard: {
+        hp: 15, maxHp: 15, apRegen: 120, hitChance: 60,
+        startingInventory: [ { baseName: 'dagger', identified: true }, { baseName: 'wand of striking', identified: true }, { baseName: 'scroll of identify', identified: true } ]
+      },
+      Rogue: {
+        hp: 20, maxHp: 20, apRegen: 110, hitChance: 75,
+        startingInventory: [ { baseName: 'dagger', identified: true }, { baseName: 'leather armor', identified: true } ]
       }
-      return { tiles: Array(h).fill().map(() => Array(w).fill('.')), width: w, height: h, rooms: [] };
+    };
+
+    // ---- Unified Log ----
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log');
+      if (!logDiv) return;
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      entry.textContent = `Turn ${turn}: ${message}`;
+      logDiv.appendChild(entry);
+      // Limit log length
+      while (logDiv.children.length > 120) {
+        logDiv.removeChild(logDiv.firstChild);
+      }
+      logDiv.scrollTop = logDiv.scrollHeight;
     }
+
+    // ---- Utility ----
+    function saveGame(manual = false) {
+      try {
+        const state = {
+          player, dungeon, monsters, pets, items, traps, turn, kills, dungeonLevel,
+          visible, explored, itemVisualToTypeMap
+        };
+        localStorage.setItem(OFFLINE_SAVE_KEY, JSON.stringify(state));
+        if (manual) log('Game saved.', 'pickup');
+      } catch (e) {
+        log('Save failed.', 'damage');
+      }
+    }
+
+    function loadGame() {
+      try {
+        const data = localStorage.getItem(OFFLINE_SAVE_KEY);
+        if (!data) { log('No save found.', 'info'); return; }
+        const state = JSON.parse(data);
+        Object.assign(window, {
+          player: state.player, dungeon: state.dungeon, monsters: state.monsters, pets: state.pets,
+          items: state.items, traps: state.traps, turn: state.turn, kills: state.kills,
+          dungeonLevel: state.dungeonLevel, visible: state.visible, explored: state.explored,
+          itemVisualToTypeMap: state.itemVisualToTypeMap
+        });
+        computeFOV(player.x, player.y, 8);
+        updateStats();
+        needsRedraw = true;
+        log('Game loaded.', 'pickup');
+      } catch (e) {
+        log('Load failed.', 'damage');
+      }
+    }
+
+    function autosave() {
+      if (turn - lastAutosaveTurn >= 20) {
+        saveGame(false);
+        lastAutosaveTurn = turn;
+      }
+    }
+
+    // ---- Player Creation ----
+    function createPlayer(role) {
+      const baseRole = PLAYER_ROLES[role];
+      player = {
+        x: 0, y: 0, glyph: '@', color: '#fff', name: 'You', role: role, level: 1, xp: 0,
+        ...baseRole,
+        gold: 0, inventory: [], inventoryMaxItems: 26,
+        poisonTurns: 0, strengthTurns: 0, confusionTurns: 0, speedTurns: 0, paralyzedTurns: 0,
+        baseDodgeChance: 5,
+        isLooking: false, lookCursor: {x: 0, y: 0},
+        ap: 100, maxAp: 100,
+        hunger: 1000, maxHunger: 2000,
+        weapon: null, armor: null,
+        hpRegenCooldown: 0,
+      };
+
+      baseRole.startingInventory.forEach(itemInfo => {
+        const itemType = ITEM_TYPES.find(i => i.baseName === itemInfo.baseName);
+        if (itemType) {
+          let newItem = { ...itemType, name: itemType.baseName || itemType.name, identified: true, status: 'Normal' };
+          player.inventory.push(newItem);
+        }
+      });
+
+      player.inventory.forEach(item => {
+        if (item.type === 'weapon' && !player.weapon) { item.equipped = true; player.weapon = item; }
+        if (item.type === 'armor' && !player.armor) { item.equipped = true; player.armor = item; }
+      });
+    }
+
+    function gainXp(amount) {
+      player.xp += amount;
+      log(`You gain ${amount} experience points.`, 'info');
+      checkLevelUp();
+    }
+
+    function checkLevelUp() {
+      let leveledUp = false;
+      while (player.level < LEVEL_XP_REQUIREMENTS.length && player.xp >= LEVEL_XP_REQUIREMENTS[player.level]) {
+        player.level++;
+        leveledUp = true;
+
+        let hpGain = player.role === 'Barbarian' ? rollDice(1, 8, 2)
+                   : (player.role === 'Wizard' ? rollDice(1, 4, 1) : rollDice(1, 6, 1));
+        player.maxHp += hpGain;
+        player.hp = player.maxHp;
+
+        player.maxAp += 10;
+        player.ap = player.maxAp;
+        player.hitChance += 1;
+
+        log(`You reached level ${player.level}! Max HP increased by ${hpGain}.`, 'pickup');
+      }
+      if (leveledUp) updateStats();
+    }
+
+    // ---- FOV ----
     function computeFOV(x, y, radius) {
       visible = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
       visible[y][x] = true;
       explored[y][x] = true;
-      for (let octant = 0; octant < 8; octant++) {
-        castLight(x, y, 1, 1.0, 0.0, radius, octant);
-      }
+      for (let octant = 0; octant < 8; octant++) castLight(x, y, 1, 1.0, 0.0, radius, octant);
+      needsRedraw = true;
     }
+
     function castLight(cx, cy, row, start, end, radius, octant) {
       if (start < end) return;
       for (let j = row; j <= radius; j++) {
@@ -334,14 +587,15 @@
             visible[Y][X] = true;
             explored[Y][X] = true;
           }
+          const isWall = dungeon.tiles[Y][X] === '#' || dungeon.tiles[Y][X] === '+';
           if (blocked) {
-            if (dungeon.tiles[Y][X] === '#') {
+            if (isWall) {
               newStart = rSlope;
               continue;
             }
             blocked = false;
             start = newStart;
-          } else if (dungeon.tiles[Y][X] === '#' && j < radius) {
+          } else if (isWall && j < radius) {
             blocked = true;
             castLight(cx, cy, j + 1, start, lSlope, radius, octant);
             newStart = rSlope;
@@ -350,519 +604,1672 @@
         if (blocked) break;
       }
     }
+
     function transform(cx, cy, dx, dy, octant) {
       switch (octant) {
-        case 0: return [cx + dx, cy - dy];
-        case 1: return [cx + dy, cy - dx];
-        case 2: return [cx - dy, cy - dx];
-        case 3: return [cx - dx, cy - dy];
-        case 4: return [cx - dx, cy + dy];
-        case 5: return [cx - dy, cy + dx];
-        case 6: return [cx + dy, cy + dx];
-        case 7: return [cx + dx, cy + dy];
+        case 0: return [cx + dx, cy - dy]; case 1: return [cx + dy, cy - dx]; case 2: return [cx - dy, cy - dx];
+        case 3: return [cx - dx, cy - dy]; case 4: return [cx - dx, cy + dy]; case 5: return [cx - dy, cy + dx];
+        case 6: return [cx + dy, cy + dx]; case 7: return [cx + dx, cy + dy];
       }
     }
-    function getCameraOffset(playerX, playerY) {
-      let offsetX = Math.max(0, Math.min(playerX - Math.floor(VIEW_WIDTH / 2), WIDTH - VIEW_WIDTH));
-      let offsetY = Math.max(0, Math.min(playerY - Math.floor(VIEW_HEIGHT / 2), HEIGHT - VIEW_HEIGHT));
+
+    // ---- Camera ----
+    function getCameraOffset(focusX, focusY) {
+      let offsetX = Math.max(0, Math.min(focusX - Math.floor(VIEW_WIDTH / 2), WIDTH - VIEW_WIDTH));
+      let offsetY = Math.max(0, Math.min(focusY - Math.floor(VIEW_HEIGHT / 2), HEIGHT - VIEW_HEIGHT));
       return { offsetX, offsetY };
     }
-    function findWalkable() {
-      for (let i = 0; i < 100; i++) {
-        let x = Math.floor(Math.random() * (WIDTH - 2)) + 1;
-        let y = Math.floor(Math.random() * (HEIGHT - 2)) + 1;
-        if (dungeon.tiles[y][x] === '.' && 
-            !(x === player.x && y === player.y) &&
-            !monsters.some(m => m.x === x && m.y === y) &&
-            !items.some(i => i.x === x && i.y === y)) {
-          return { x, y };
-        }
-      }
-      return { x: Math.min(WIDTH - 2, player.x + 1), y: player.y };
+
+    // ---- Dungeon Generation ----
+    function isWalkable(x, y) {
+      if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return false;
+      const tile = dungeon.tiles[y][x];
+      return tile === '.' || tile === '\'' || tile === '>' || tile === '_' || tile === '{' || tile === 'E';
     }
-function spawnMonsters(count) {
-  monsters = [];
-  
-  // Calculate max monster type based on depth
-  // This unlocks one new monster type every 2 levels
-  let maxType = Math.min(MONSTER_TYPES.length - 1, Math.floor((dungeonLevel - 1) / 2));
-  
-  for (let i = 0; i < count; i++) {
-    let type = MONSTER_TYPES[Math.floor(Math.random() * (maxType + 1))];
-    let pos = findWalkable();
-    monsters.push({
-      ...pos,
-      glyph: type.glyph,
-      color: type.color,
-      name: type.name,
-      hp: type.hp,
-      maxHp: type.hp,
-      damage: Math.min(type.damage + Math.floor(dungeonLevel / 2), type.damage * 2),
-      xp: Math.min(type.xp * dungeonLevel, type.xp * 10),
-      defense: Math.min(type.defense + dungeonLevel, type.defense * 2),
-      hitChance: type.hitChance
-    });
-  }
-}
-    function spawnItems(count) {
-  items = [];
-  
-  // Always spawn stairs (index 0)
-  let stairsPos = findWalkable();
-  let stairsType = ITEM_TYPES[0];
-  items.push({ 
-    x: stairsPos.x, 
-    y: stairsPos.y, 
-    glyph: stairsType.glyph, 
-    color: stairsType.color, 
-    name: stairsType.name, 
-    isStairs: true 
-  });
-  
-  // Random index from 1 to maxItemType (inclusive)
-let type = ITEM_TYPES[1 + Math.floor(Math.random() * maxItemType)];
-  for (let i = 0; i < count; i++) {
-    // Start from index 1 to skip stairs
-    let type = ITEM_TYPES[Math.floor(Math.random() * (maxItemType - 1 + 1)) + 1];
-    let pos = findWalkable();
-    let item = { x: pos.x, y: pos.y, glyph: type.glyph, color: type.color, name: type.name };
-    if (type.damage) item.damage = type.damage;
-    if (type.value !== undefined) item.value = Math.floor(Math.random() * 50) + 10;
-    if (type.heal) item.heal = type.heal;
-    items.push(item);
-  }
-}    function spawnTraps(count) {
-      traps = [];
-      for (let i = 0; i < count; i++) {
-        let type = TRAP_TYPES[Math.floor(Math.random() * TRAP_TYPES.length)];
-        let pos = findWalkable();
-        traps.push({ ...pos, ...type });
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
       }
     }
-    function initGame(restart = false) {
-      if (restart) {
-        player = {
-          x: 0, y: 0, glyph: '@', color: '#fff',
-          hp: 20, maxHp: 20, level: 1, xp: 0,
-          weapon: null, gold: 0, inventory: [],
-          inventorySize: 5, inventoryMaxItems: 20,
-          poisonTurns: 0, hitChance: 70
-        };
-        dungeonLevel = 1;
-        kills = 0;
-        document.getElementById('log').innerHTML = '<div class="log-entry">Welcome! Arrow keys move, Space waits. Find stairs (>) to descend!</div>';
-      }
-      dungeon = generateDungeon(WIDTH, HEIGHT);
-      if (dungeon.rooms.length > 0) {
-        player.x = dungeon.rooms[0].cx;
-        player.y = dungeon.rooms[0].cy;
-      } else {
-        let pos = findWalkable();
-        player.x = pos.x;
-        player.y = pos.y;
-      }
-      player.hp = player.maxHp;
-      player.poisonTurns = 0;
-      visible = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
-      explored = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
-      spawnMonsters(Math.min(30, 10 + dungeonLevel * 2));
-      spawnItems(8);
-      spawnTraps(5);
-      turn = 0;
-      document.getElementById('restart-modal').classList.remove('show');
-      computeFOV(player.x, player.y, 8);
-      updateStats();
-      gameLoop();
+
+    function randomizeItemNames() {
+      itemVisualToTypeMap = {};
+      const typesToRandomize = ['potion', 'scroll', 'wand', 'tool'];
+      typesToRandomize.forEach(type => {
+        const itemSubtypes = ITEM_TYPES.filter(i => i.type === type && i.visualName);
+        const baseNames = itemSubtypes.map(p => p.baseName);
+        const visualNames = itemSubtypes.map(p => p.visualName);
+        shuffleArray(baseNames);
+        for (let i = 0; i < itemSubtypes.length; i++) itemVisualToTypeMap[visualNames[i]] = baseNames[i];
+      });
+      ITEM_TYPES.forEach(itemType => { if (itemType.visualName) itemType.identified = false; });
+      log('Item appearances have been shuffled for this run!', 'info');
     }
-    function gameLoop() {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      const { offsetX, offsetY } = getCameraOffset(player.x, player.y);
-      
-      for (let viewY = 0; viewY < VIEW_HEIGHT; viewY++) {
-        for (let viewX = 0; viewX < VIEW_WIDTH; viewX++) {
-          let mapX = offsetX + viewX;
-          let mapY = offsetY + viewY;
-          if (mapX >= WIDTH || mapY >= HEIGHT) continue;
-          if (!explored[mapY][mapX]) continue;
-          ctx.fillStyle = visible[mapY][mapX] ? '#0f0' : '#050';
-          ctx.fillText(dungeon.tiles[mapY][mapX], viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE);
+
+    function generateDungeon(w, h) {
+      let tiles = Array(h).fill().map(() => Array(w).fill('#'));
+      let rooms = [];
+      let features = [];
+      let engravings = [];
+
+      for (let i = 0; i < 20; i++) {
+        let rw = Math.floor(Math.random() * 6) + 5;
+        let rh = Math.floor(Math.random() * 4) + 4;
+        let rx = Math.floor(Math.random() * (w - rw - 2)) + 1;
+        let ry = Math.floor(Math.random() * (h - rh - 2)) + 1;
+        let overlap = rooms.some(r => rx < r.x + r.w + 1 && rx + rw + 1 > r.x && ry < r.y + r.h + 1 && ry + rh + 1 > r.y);
+        if (!overlap) {
+          for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) tiles[y][x] = '.';
+          rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw/2), cy: Math.floor(ry + rh/2) });
         }
       }
 
-      for (let trap of traps) {
-        if (trap.x < offsetX || trap.x >= offsetX + VIEW_WIDTH || trap.y < offsetY || trap.y >= offsetY + VIEW_HEIGHT) continue;
-        if (visible[trap.y][trap.x] && !trap.hidden) {
-          ctx.fillStyle = trap.color;
-          ctx.fillText(trap.glyph, (trap.x - offsetX) * TILE_SIZE, (trap.y - offsetY + 1) * TILE_SIZE);
+      if (Math.random() < 0.15) generateVault(tiles, rooms);
+
+      rooms.sort((a, b) => a.x - b.x);
+      for (let i = 0; i < rooms.length - 1; i++) {
+        let x1 = rooms[i].cx, y1 = rooms[i].cy;
+        let x2 = rooms[i+1].cx, y2 = rooms[i+1].cy;
+        let hx = x1, hy = y1;
+        while (hx !== x2 || hy !== y2) {
+          if (Math.abs(x2 - hx) > Math.abs(y2 - hy) && hx !== x2) hx += Math.sign(x2 - hx);
+          else if (hy !== y2) hy += Math.sign(y2 - hy);
+          if (tiles[hy]?.[hx] === '#') {
+            if (Math.random() > 0.3 && (tiles[hy-1]?.[hx] === '.' || tiles[hy+1]?.[hx] === '.' || tiles[hy][hx-1] === '.' || tiles[hy][hx+1] === '.')) {
+              tiles[hy][hx] = '+';
+              features.push({ x: hx, y: hy, type: 'door', open: false, locked: Math.random() < 0.1, discovered: false });
+            } else {
+              tiles[hy][hx] = '.';
+            }
+          }
         }
       }
-      for (let item of items) {
-        if (item.x < offsetX || item.x >= offsetX + VIEW_WIDTH || item.y < offsetY || item.y >= offsetY + VIEW_HEIGHT) continue;
-        if (visible[item.y][item.x]) {
-          ctx.fillStyle = item.color;
-          ctx.fillText(item.glyph, (item.x - offsetX) * TILE_SIZE, (item.y - offsetY + 1) * TILE_SIZE);
-        }
+
+      if (rooms.length > 2) {
+        let room1 = rooms[Math.floor(Math.random() * rooms.length)];
+        features.push({x: room1.cx, y: room1.cy, type: 'altar', glyph: '_', color: '#fff'});
+        tiles[room1.cy][room1.cx] = '_';
+        let room2;
+        do { room2 = rooms[Math.floor(Math.random() * rooms.length)]; } while (room2 === room1);
+        features.push({x: room2.cx, y: room2.cy, type: 'fountain', glyph: '{', color: '#0af'});
+        tiles[room2.cy][room2.cx] = '{';
       }
-      for (let monster of monsters) {
-        if (monster.x < offsetX || monster.x >= offsetX + VIEW_WIDTH || monster.y < offsetY || monster.y >= offsetY + VIEW_HEIGHT) continue;
-        if (visible[monster.y][monster.x]) {
-          ctx.fillStyle = monster.color;
-          ctx.fillText(monster.glyph, (monster.x - offsetX) * TILE_SIZE, (monster.y - offsetY + 1) * TILE_SIZE);
-        }
-      }
-      if (player.x >= offsetX && player.x < offsetX + VIEW_WIDTH && 
-          player.y >= offsetY && player.y < offsetY + VIEW_HEIGHT) {
-        ctx.fillStyle = player.color;
-        ctx.fillText(player.glyph, (player.x - offsetX) * TILE_SIZE, (player.y - offsetY + 1) * TILE_SIZE);
+
+      dungeon.rooms = rooms;
+      dungeon.features = features;
+      dungeon.engravings = engravings;
+      return { tiles, width: w, height: h, rooms, features, engravings };
+    }
+
+    function generateVault(tiles, rooms) {
+      let w = tiles[0].length, h = tiles.length;
+      let rw = Math.floor(Math.random() * 4) + 4;
+      let rh = Math.floor(Math.random() * 4) + 4;
+      let rx = Math.floor(Math.random() * (w - rw - 2)) + 1;
+      let ry = Math.floor(Math.random() * (h - rh - 2)) + 1;
+      let overlap = rooms.some(r => rx < r.x + r.w + 1 && rx + rw + 1 > r.x && ry < r.y + r.h + 1 && ry + rh + 1 > r.y);
+      if (!overlap) {
+        for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) tiles[y][x] = '.';
+        const vaultRoom = { x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw/2), cy: Math.floor(ry + rh/2), isVault: true };
+        rooms.push(vaultRoom);
+        log("You feel a sense of hidden treasure on this level.", "info");
       }
     }
-    function log(msg, cls = '') {
-      const div = document.getElementById('log');
-      const entry = document.createElement('div');
-      entry.className = `log-entry ${cls}`;
-      entry.textContent = msg;
-      div.appendChild(entry);
-      div.scrollTop = div.scrollHeight;
-    }
-    function useItem(i) {
-      if (!player.inventory[i]) return;
-      const item = player.inventory[i];
-      if (item.damage) {
-        if (player.weapon && player.weapon.name === item.name) {
-          log(`Already equipped!`, 'damage');
-          return;
-        }
-        player.weapon = { name: item.name, damage: item.damage };
-        log(`Equipped ${item.name}!`, 'pickup');
-        item.count--;
-      } else if (item.heal) {
-        let healed = Math.min(item.heal, player.maxHp - player.hp);
-        player.hp += healed;
-        if (player.poisonTurns > 0) {
-          player.poisonTurns = 0;
-          log(`Healed ${healed} HP and cured poison!`, 'pickup');
-        } else if (healed > 0) {
-          log(`Healed ${healed} HP!`, 'pickup');
+
+    function findWalkable(room = null) {
+      for (let i = 0; i < 200; i++) {
+        let x, y;
+        if (room) {
+          x = room.x + Math.floor(Math.random() * room.w);
+          y = room.y + Math.floor(Math.random() * room.h);
         } else {
-          log(`Already at full HP!`, 'damage');
-          return;
+          x = Math.floor(Math.random() * (WIDTH - 2)) + 1;
+          y = Math.floor(Math.random() * (HEIGHT - 2)) + 1;
         }
-        item.count--;
+        if (isWalkable(x,y) && !(x === player?.x && y === player?.y) && !monsters.some(m => m.x === x && m.y === y) && !items.some(i => i.x === x && i.y === y)) {
+          return { x, y };
+        }
       }
-      if (item.count <= 0) {
-        player.inventory.splice(i, 1);
-      }
-      updateStats();
-      turn++;
-      handleTurnEnd();
+      return { x: Math.min(WIDTH - 2, player?.x + 1 || 1), y: player?.y || 1 };
     }
-    function dropItem(i) {
-      if (!player.inventory[i]) return;
-      const item = player.inventory[i];
-      items.push({
-        x: player.x,
-        y: player.y,
-        glyph: item.glyph,
-        color: item.color,
-        name: item.name,
-        damage: item.damage,
-        heal: item.heal
+
+    function findWalkableAdjacent(px, py) {
+      const adjacencies = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        let x = px + dx; let y = py + dy;
+        if (isWalkable(x,y) && !monsters.some(m => m.x === x && m.y === y) && !(player.x === x && player.y === y)) adjacencies.push({ x, y });
+      }
+      return adjacencies.length > 0 ? adjacencies[Math.floor(Math.random() * adjacencies.length)] : null;
+    }
+
+    // ---- Spawning ----
+    function spawnMonsters(count) {
+      let spawnPool = MONSTER_TYPES.filter(type => type.depth <= dungeonLevel + 1);
+
+      const vault = dungeon.rooms.find(r => r.isVault);
+      if (vault) {
+        let candidates = MONSTER_TYPES.filter(t => t.depth >= dungeonLevel && t.depth <= dungeonLevel + 2);
+        let guardianType = candidates[candidates.length - 1] || MONSTER_TYPES[MONSTER_TYPES.length -1];
+        let pos = findWalkable(vault);
+        monsters.push({ ...pos, ...guardianType, maxHp: guardianType.hp, ap: 0, state: 'wandering', weapon: null });
+      }
+
+      for (let i = 0; i < count; i++) {
+        if (spawnPool.length === 0) break;
+        let type = spawnPool[Math.floor(Math.random() * spawnPool.length)];
+        let room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+        if (!room || room.isVault) continue;
+        let pos = findWalkable(room);
+        monsters.push({ ...pos, ...type, maxHp: type.hp, ap: 0, state: 'wandering', weapon: null });
+      }
+    }
+
+    function generateItemStatus() {
+      const roll = Math.random();
+      if (roll < 0.20) return 'Cursed';
+      if (roll < 0.80) return 'Normal';
+      return 'Blessed';
+    }
+
+    function spawnItems(count) {
+      const validItems = ITEM_TYPES.filter(i => i.depth <= dungeonLevel);
+      const stairsType = validItems.find(i => i.isStairs);
+      const stairsRoom = dungeon.rooms[dungeon.rooms.length -1] || dungeon.rooms[0];
+      const stairsPos = findWalkable(stairsRoom);
+      items.push({ x: stairsPos.x, y: stairsPos.y, ...stairsType });
+
+      dungeon.tiles[stairsPos.y][stairsPos.x] = '>';
+
+      const vault = dungeon.rooms.find(r => r.isVault);
+      if (vault) {
+        for(let v = 0; v < 3; v++) {
+          let pool = ITEM_TYPES.filter(i => i.depth > 0 && i.depth <= dungeonLevel + 2);
+          let type = pool[Math.floor(Math.random() * pool.length)] || ITEM_TYPES[2];
+          let pos = findWalkable(vault);
+          items.push({
+            ...type, ...pos,
+            name: type.baseName || type.name, identified: !!type.identified,
+            status: generateItemStatus(), hidden: Math.random() < 0.15
+          });
+        }
+      }
+
+      for (let i = 0; i < count; i++) {
+        let type;
+        do { type = validItems[Math.floor(Math.random() * validItems.length)]; } while (type.isStairs);
+        let room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+        if (!room || room.isVault) continue;
+        let pos = findWalkable(room);
+        let itemToSpawn = { ...type };
+
+        if (itemToSpawn.visualName && !itemToSpawn.identified) {
+          const trueBaseName = itemVisualToTypeMap[itemToSpawn.visualName];
+          const trueType = ITEM_TYPES.find(i => i.baseName === trueBaseName);
+          if (trueType) Object.assign(itemToSpawn, trueType, { visualName: type.visualName, baseName: trueType.baseName });
+        }
+
+        let item = {
+          ...itemToSpawn, ...pos,
+          name: itemToSpawn.identified ? (itemToSpawn.baseName || itemToSpawn.name) : (itemToSpawn.visualName || itemToSpawn.baseName || itemToSpawn.name),
+          identified: itemToSpawn.identified || false,
+          status: generateItemStatus(),
+        };
+        if (item.baseName === 'gold') item.value = rollDice(1, Math.max(10, Math.floor(50 * dungeonLevel)), 10);
+        if (item.type === 'wand') item.charges = rollDice(1, 4, 2);
+        items.push(item);
+      }
+    }
+
+    function spawnTraps(count) {
+      traps = [];
+      for (let i = 0; i < count; i++) {
+        let type = TRAP_TYPES[Math.floor(Math.random() * TRAP_TYPES.length)];
+        let room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+        if (!room || room.isVault) continue;
+        let pos = findWalkable(room);
+        traps.push({ ...pos, ...type });
+      }
+    }
+
+    // ---- Game Init ----
+    function initGame(restart = false, role) {
+      if (restart) {
+        createPlayer(role);
+        dungeonLevel = 1; kills = 0;
+        document.getElementById('log').innerHTML = '<div class="log-entry">Welcome! Find the stairs (>) to descend deeper...</div>';
+        randomizeItemNames();
+      }
+      dungeon = generateDungeon(WIDTH, HEIGHT);
+      if (dungeon.rooms.length > 0) { player.x = dungeon.rooms[0].cx; player.y = dungeon.rooms[0].cy; }
+      else { let pos = findWalkable(); player.x = pos.x; player.y = pos.y; }
+
+      pets = [];
+      const petPos = findWalkableAdjacent(player.x, player.y) || {x: player.x, y: player.y-1};
+      pets.push({ ...PET_TYPES[0], x: petPos.x, y: petPos.y, maxHp: PET_TYPES[0].hp, ap: 0 });
+
+      player.lookCursor = { x: player.x, y: player.y };
+      player.hp = player.maxHp; player.ap = player.maxAp; player.poisonTurns = 0;
+      player.strengthTurns = 0; player.confusionTurns = 0; player.speedTurns = 0; player.paralyzedTurns = 0;
+      visible = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
+      explored = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
+      items = [];
+      spawnMonsters(Math.min(30, 10 + dungeonLevel * 2));
+      spawnItems(8 + dungeonLevel);
+      spawnTraps(5);
+      turn = 0;
+      document.getElementById('restart-modal').classList.remove('show');
+      cancelActionModes();
+      computeFOV(player.x, player.y, 8);
+      updateStats();
+      needsRedraw = true;
+      saveGame(false); // initial autosave
+    }
+
+    // ---- Stats & Display ----
+    function getPlayerDR() {
+      let dr = 1; // base DR
+      if (player.armor) {
+        dr += player.armor.defense || 0;
+        if (player.armor.status === 'Blessed') dr += 1;
+        else if (player.armor.status === 'Cursed') dr = Math.max(1, dr - 1);
+      }
+      return dr;
+    }
+
+    function getPlayerDodgeChance() {
+      let dodge = player.baseDodgeChance;
+      if (player.speedTurns > 0) dodge += 10;
+      return Math.min(90, Math.max(0, dodge));
+    }
+
+    function getDodgeChance(target) {
+      let dodge = target.baseDodgeChance ?? Math.floor((target.defense || 0) / 2);
+      if (target.armor) dodge += Math.floor((target.armor.defense || 0) / 2);
+      return Math.min(90, Math.max(0, dodge));
+    }
+
+    function getHungerStatus() {
+      if (player.hunger > 1500) return 'Satiated';
+      if (player.hunger > 500) return 'Normal';
+      if (player.hunger > 200) return 'Hungry';
+      if (player.hunger > 0) return 'Weak';
+      return 'Fainting';
+    }
+
+    function getItemDisplayName(item) {
+      let name = item.name;
+      if (item.type === 'wand' && item.identified) name += ` (${item.charges})`;
+      if (item.type !== 'gold' && item.status && item.status !== 'Normal') name = `${item.status} ${name}`;
+      if (item.equipped) name = `[E] ${name}`;
+      return name;
+    }
+
+    function updateInventoryDisplay() {
+      const list = document.getElementById('inventory-list');
+      if (!list) return;
+      list.innerHTML = '';
+      player.inventory.forEach((item, index) => {
+        const button = document.createElement('button');
+        button.className = 'inventory-btn';
+        if (currentActionContext && currentActionContext.item === item) button.classList.add('action-mode-selected');
+        button.textContent = `(${String.fromCharCode(97 + index)}) ${getItemDisplayName(item)}`;
+        button.dataset.index = index;
+        button.addEventListener('click', (e) => handleInventoryClick(e, item));
+        list.appendChild(button);
       });
-      log(`Dropped ${item.name}`, 'pickup');
-      item.count--;
-      if (item.count <= 0) {
-        if (player.weapon && player.weapon.name === item.name) {
-          player.weapon = null;
-        }
-        player.inventory.splice(i, 1);
-      }
-      itemAction = 'use';
-      document.getElementById('toggle-action').textContent = 'Drop Mode (Off)';
-      updateStats();
-      turn++;
-      handleTurnEnd();
     }
+
     function updateStats() {
       document.getElementById('hp').textContent = `${player.hp}/${player.maxHp}`;
       document.getElementById('level').textContent = player.level;
       document.getElementById('xp').textContent = player.xp;
-      document.getElementById('weapon').textContent = player.weapon ? player.weapon.name : 'Fists';
-      document.getElementById('gold').textContent = player.gold;
       document.getElementById('depth').textContent = dungeonLevel;
-      document.getElementById('status').textContent = player.poisonTurns > 0 ? `Poisoned (${player.poisonTurns})` : 'Normal';
-      document.getElementById('status').style.color = player.poisonTurns > 0 ? '#f00' : '#0f0';
-      const inv = document.getElementById('inventory-list');
-      inv.innerHTML = '';
-      if (player.inventory.length === 0) {
-        inv.innerHTML = '<div>Empty</div>';
-      } else {
-        player.inventory.forEach((item, i) => {
-          const btn = document.createElement('button');
-          btn.className = 'inventory-btn';
-          btn.textContent = `${i+1}. ${item.name} x${item.count}`;
-          btn.onclick = () => itemAction === 'use' ? useItem(i) : dropItem(i);
-          inv.appendChild(btn);
+      document.getElementById('ap').textContent = `${player.ap}/${player.maxAp}`;
+      document.getElementById('dr').textContent = getPlayerDR();
+      document.getElementById('dodge').textContent = `${getPlayerDodgeChance()}%`;
+      document.getElementById('gold').textContent = player.gold;
+      document.getElementById('weapon').textContent = player.weapon ? getItemDisplayName(player.weapon) : 'Fists';
+      document.getElementById('armor').textContent = player.armor ? getItemDisplayName(player.armor) : 'None';
+      let statusText = 'Normal';
+      if (player.paralyzedTurns > 0) statusText = 'Paralyzed';
+      else if (player.poisonTurns > 0) statusText = 'Poisoned';
+      else if (player.confusionTurns > 0) statusText = 'Confused';
+      else if (player.strengthTurns > 0) statusText = 'Strong';
+      else if (player.speedTurns > 0) statusText = 'Hasted';
+      if (player.hp <= player.maxHp * 0.2) statusText += ' (Low HP)';
+      document.getElementById('status').textContent = statusText;
+      document.getElementById('hunger').textContent = getHungerStatus();
+      updateInventoryDisplay(); needsRedraw = true;
+    }
+
+    // ---- Identify ----
+    function identifyItem(item) {
+      if (!item.identified) {
+        const trueBaseName = itemVisualToTypeMap[item.visualName] || item.baseName || item.name;
+        item.identified = true;
+        item.name = trueBaseName;
+
+        [...items, ...player.inventory].forEach(i => {
+          if (i.visualName === item.visualName) {
+            i.identified = true;
+            i.name = trueBaseName;
+            i.baseName = trueBaseName;
+          }
         });
+        log(`You have discovered the ${trueBaseName}!`, 'pickup');
+        updateStats();
       }
     }
-    function attack(attacker, defender) {
-      if (Math.random() * 100 > (attacker === player ? player.hitChance : attacker.hitChance)) {
-        log(attacker === player ? 'Miss!' : `${attacker.name} misses!`, 'damage');
+
+    // ---- Effects ----
+    function applyItemEffectToPlayer(item) {
+      let consumed = false;
+      if (item.heal) { player.hp = Math.min(player.maxHp, player.hp + item.heal); log(`You feel better.`, 'pickup'); consumed = true; }
+      if (item.nutrition) { player.hunger = Math.min(player.maxHunger, player.hunger + item.nutrition); log(`That was delicious!`, 'pickup'); consumed = true; }
+      if (item.effect) {
+        if (item.effect.strength) { player.strengthTurns += item.effect.strength; log('You feel stronger!', 'pickup'); consumed = true; }
+        if (item.effect.confusion) { player.confusionTurns += item.effect.confusion; log('You feel confused!', 'damage'); consumed = true; }
+        if (item.effect.speed) { player.speedTurns += item.effect.speed; log('You feel swift!', 'pickup'); consumed = true; }
+        if (item.effect.identify) {
+          const unIDedItem = player.inventory.find(i => !i.identified && i !== item);
+          if (unIDedItem) identifyItem(unIDedItem);
+          else log('You have no unidentified items.', 'info');
+          consumed = true;
+        }
+        if (item.effect.teleport) { teleportPlayer(); consumed = true; }
+        if (item.effect.magicMap) { for(let y=0; y<HEIGHT; y++) for(let x=0; x<WIDTH; x++) { if(dungeon.tiles[y][x] !== ' ') explored[y][x] = true; } log('The map is revealed!', 'pickup'); needsRedraw = true; consumed = true; }
+        if (item.effect.removeCurse) {
+          let cursedItem = player.inventory.find(i => i.status === 'Cursed');
+          if (cursedItem) { cursedItem.status = 'Normal'; log(`You feel a burden lift. The ${cursedItem.name} is no longer cursed.`, 'pickup'); }
+          else log('You feel a sense of purity for a moment.', 'info');
+          consumed = true;
+        }
+      }
+      if (consumed) identifyItem(item);
+      return consumed;
+    }
+
+    function applyItemEffectToMonster(item, monster) {
+      if (item.effect && item.effect.confusion) { monster.confusionTurns = (monster.confusionTurns || 0) + 7; log(`${monster.name} looks confused!`, 'damage'); }
+      if (item.effect && item.effect.teleport) teleportMonster(monster);
+      identifyItem(item);
+    }
+
+    // ---- Equip/Use/Drop ----
+    function useItem(item, isStarting=false) {
+      if (!isStarting && player.ap < AP_COSTS.USE_ITEM) { log('Not enough AP to use item!', 'damage'); return false; }
+      if (item.type === 'weapon' || item.type === 'armor' || item.type === 'tool') {
+        if (item.equipped) {
+          if (item.status === 'Cursed') { log(`The ${getItemDisplayName(item)} is cursed and cannot be removed!`, 'damage'); return false; }
+          if (item.type === 'weapon') player.weapon = null;
+          if (item.type === 'armor') player.armor = null;
+          item.equipped = false; log(`You unequipped the ${getItemDisplayName(item)}.`, 'pickup');
+        } else {
+          if (item.type === 'weapon') { if (player.weapon) player.weapon.equipped = false; player.weapon = item; }
+          if (item.type === 'armor') { if (player.armor) player.armor.equipped = false; player.armor = item; }
+          item.equipped = true; log(`You equipped the ${getItemDisplayName(item)}.`, 'pickup');
+          if (item.status === 'Cursed') log('It feels strangely attached...', 'damage');
+        }
+        if (!isStarting) { player.ap -= AP_COSTS.USE_ITEM; processTurn(); } return true;
+      } else if (item.type === 'potion' || item.type === 'scroll' || item.type === 'food') {
+        const consumed = applyItemEffectToPlayer(item);
+        if (consumed) {
+          if (!isStarting) player.ap -= AP_COSTS.USE_ITEM;
+          const index = player.inventory.indexOf(item); if (index > -1) player.inventory.splice(index, 1);
+          if (!isStarting) processTurn(); return true;
+        }
+      }
+      return false;
+    }
+
+    function dropItem(item) {
+      const index = player.inventory.indexOf(item);
+      if (index === -1) return;
+      if (item.equipped && item.status === 'Cursed') { log(`You can't drop the cursed ${getItemDisplayName(item)}!`, 'damage'); return; }
+      if (item.equipped) {
+        if (item.type === 'weapon') player.weapon = null;
+        if (item.type === 'armor') player.armor = null;
+        item.equipped = false;
+      }
+      player.inventory.splice(index, 1);
+      items.push({ x: player.x, y: player.y, ...item });
+      log(`You dropped the ${getItemDisplayName(item)}.`, 'pickup');
+      updateStats(); needsRedraw = true;
+    }
+
+    // ---- AP & Status ----
+    function safeSpendAP(cost, actionName = 'Action') {
+      const costPerTurn = player.maxAp;
+      if (cost <= costPerTurn) {
+        if (player.ap >= cost) { player.ap -= cost; return true; }
+        log(`Insufficient AP to initiate ${actionName}. Requires ${cost} AP.`, 'damage');
         return false;
       }
-      let dmg = attacker === player ? (player.weapon ? player.weapon.damage : 2) : attacker.damage;
-      dmg = Math.max(1, dmg + Math.floor(Math.random() * 3) - 1 - Math.floor((defender.defense || 0) / 10));
-      defender.hp -= dmg;
-      log(attacker === player ? `Hit ${defender.name} for ${dmg}!` : `${attacker.name} hits for ${dmg}!`, 'damage');
-      if (defender.hp <= 0) {
-        if (defender === player) {
-          log('You died!', 'death');
-          setTimeout(showDeathScreen, 500);
-        } else {
-          kills++;
-          player.xp += defender.xp;
-          monsters = monsters.filter(m => m !== defender);
-          log(`Killed ${defender.name}!`, 'death');
-          checkLevelUp();
+      if (player.ap < costPerTurn) {
+        log(`Insufficient AP to initiate ${actionName}. Requires ${costPerTurn} AP to start.`, 'damage');
+        return false;
+      }
+      let totalTurnsRequired = Math.ceil(cost / costPerTurn);
+      let turnsOfWait = totalTurnsRequired - 1;
+      player.ap = 0;
+      player.paralyzedTurns += turnsOfWait;
+      log(`You used a great deal of effort to ${actionName}. You are stunned for ${turnsOfWait} turn(s).`, 'damage');
+      return true;
+    }
+
+function regenerateAP() {
+  if (player.ap < player.maxAp) {
+    const regenAmount = player.apRegen || 100;
+    player.ap = Math.min(player.ap + regenAmount, player.maxAp);
+  }
+
+  monsters.forEach(m => {
+    const maxAp = m.apRegen * 2;
+    m.ap = Math.min(m.ap + m.apRegen, maxAp);
+  });
+
+  pets.forEach(p => {
+    const maxAp = p.apRegen * 2;
+    p.ap = Math.min(p.ap + p.apRegen, maxAp);
+  });
+
+  traps.forEach(t => {
+    if (t.apRegen != null) {
+      const maxAp = t.maxAp || 100;
+      t.ap = Math.min((t.ap || 0) + t.apRegen, maxAp);
+    }
+  });
+}
+
+// ---- Actor-aware AP spend ----
+function spendAP(actor, cost, actionName) {
+  const ap = actor.ap || 0;
+  if (ap < cost) return false;
+  actor.ap = ap - cost;
+  return true;
+}
+
+    function applyStatusEffects() {
+      player.hpRegenCooldown--;
+      if (player.hpRegenCooldown <= 0 && player.hp < player.maxHp && player.hunger > 500) {
+        player.hp += 1;
+        player.hpRegenCooldown = 20;
+      }
+
+      player.hunger -= 1;
+      if (player.hunger <= 0) {
+        log('You are starving!', 'damage');
+        takeDamage(1);
+      }
+
+      if (player.poisonTurns > 0) {
+        takeDamage(1);
+        player.poisonTurns--;
+        if (player.poisonTurns === 0) log('The poison wears off.', 'pickup');
+      }
+      if (player.confusionTurns > 0) {
+        player.confusionTurns--;
+        if (player.confusionTurns === 0) log('You feel less confused.', 'pickup');
+      }
+      if (player.strengthTurns > 0) {
+        player.strengthTurns--;
+        if (player.strengthTurns === 0) log('You feel weaker.', 'pickup');
+      }
+      if (player.speedTurns > 0) {
+        player.speedTurns--;
+        if (player.speedTurns === 0) log('You feel normal speed again.', 'pickup');
+      }
+
+      monsters.forEach(m => { if (m.confusionTurns > 0) m.confusionTurns--; });
+    }
+
+    // ---- Combat ----
+    function calculateDamage(attacker, target) {
+      let damage = 1;
+      let weapon = attacker.weapon;
+      if (weapon) {
+        damage = rollDice(1, weapon.damage);
+        if (attacker === player) {
+          if (weapon.status === 'Blessed') damage += 2;
+          else if (weapon.status === 'Cursed') damage = Math.max(1, damage - 1);
         }
+        if (target.resists === weapon.damageType) {
+          damage = Math.max(1, Math.floor(damage / 2));
+          if (attacker === player) log(`${target.name} resists the ${weapon.damageType} damage!`, 'info');
+        }
+      } else {
+        damage = rollDice(1, attacker.damage || 2);
+      }
+      return Math.max(1, damage);
+    }
+
+    function attack(attacker, target) {
+      if (attacker.ap < AP_COSTS.ATTACK) { if (attacker === player) log('Not enough AP for attack!', 'damage'); return; }
+      attacker.ap -= AP_COSTS.ATTACK;
+      const hitRoll = Math.random() * 100;
+      const effectiveHitChance = (attacker.hitChance || 70) - getDodgeChance(target);
+      if (hitRoll < effectiveHitChance) {
+        let damage = calculateDamage(attacker, target);
+        target.hp -= damage;
+        log(`${attacker.name} hits ${target.name} for ${damage} damage!`, 'damage');
+        if (target.hp <= 0) {
+          handleEntityDeath(attacker, target);
+        } else {
+          if (target === player && attacker.name === 'slime' && Math.random() < 0.25) {
+            if (player.armor) { player.armor.defense = Math.max(0, player.armor.defense - 1); log('Your armor corrodes!', 'damage'); updateStats(); }
+          }
+        }
+      } else {
+        log(`${attacker.name} misses ${target.name}.`, 'info');
+      }
+    }
+
+    function handleEntityDeath(attacker, target) {
+      if (target === player) {
+        log('You have died!', 'death'); showRestartModal(); return;
+      }
+      log(`${target.name} is defeated!`, 'death');
+      if (attacker === player) { gainXp(target.xp || 1); kills++; }
+      if (Math.random() < 0.8) {
+        const goldValue = rollDice(1, Math.max(2, Math.floor((target.xp || 2) / 2)), target.xp || 1);
+        items.push({ x: target.x, y: target.y, glyph: '$', name: 'gold', color: '#ff0', value: goldValue, identified: true, type: 'gold', baseName: 'gold' });
+      }
+      if (target.name === 'slime') {
+        if (Math.random() < 0.5) {
+          const moldType = ITEM_TYPES.find(i => i.baseName === 'slime mold');
+          if (moldType) items.push({ x: target.x, y: target.y, ...moldType, name: moldType.baseName, identified: true });
+        }
+      }
+      if(monsters.includes(target)) monsters = monsters.filter(m => m !== target);
+      if(pets.includes(target)) pets = pets.filter(p => p !== target);
+    }
+
+    function takeDamage(damage) {
+      const dr = getPlayerDR();
+      const effectiveDamage = Math.max(1, damage - dr);
+      player.hp -= effectiveDamage;
+      updateStats();
+      if (player.hp <= 0) { player.hp = 0; log('You have died!', 'death'); showRestartModal(); }
+    }
+
+    // ---- Movement & Actions ----
+    function cancelActionModes() {
+  currentActionContext = null;
+  // Do not force-look OFF here; the button toggle should own that state.
+  document.getElementById('throw-mode-btn').classList.remove('action-mode');
+  document.getElementById('look-btn').classList.remove('action-mode');
+  needsRedraw = true;
+}
+// ---- Targeting utilities ----
+function hasLineOfSight(ax, ay, bx, by) {
+  let x = ax, y = ay;
+  const dx = Math.sign(bx - ax), dy = Math.sign(by - ay);
+  while (x !== bx || y !== by) {
+    x += dx; y += dy;
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return false;
+    if (dungeon.tiles[y][x] === '#') return false;
+  }
+  return true;
+}
+
+function pickCardinalDirection(ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  if (Math.abs(dx) >= Math.abs(dy)) return { dx: Math.sign(dx), dy: 0 };
+  return { dx: 0, dy: Math.sign(dy) };
+}
+// ---- Targeting utilities ----
+function hasLineOfSight(ax, ay, bx, by) {
+  let x = ax, y = ay;
+  const dx = Math.sign(bx - ax), dy = Math.sign(by - ay);
+  while (x !== bx || y !== by) {
+    x += dx; y += dy;
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return false;
+    if (dungeon.tiles[y][x] === '#') return false;
+  }
+  return true;
+}
+
+function pickCardinalDirection(ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  if (Math.abs(dx) >= Math.abs(dy)) return { dx: Math.sign(dx), dy: 0 };
+  return { dx: 0, dy: Math.sign(dy) };
+}
+const actionHandlers = {
+  kick: (dx, dy) => {
+    if (!safeSpendAP(AP_COSTS.KICK, 'kick')) return;
+    const targetX = player.x + dx;
+    const targetY = player.y + dy;
+    const monster = monsters.find(m => m.x === targetX && m.y === targetY);
+    const door = dungeon.features.find(f => f.x === targetX && f.y === targetY && f.type === 'door');
+
+    if (monster) {
+      const damage = rollDice(1, 2);
+      monster.hp -= damage;
+      log(`You kick the ${monster.name} for ${damage} damage!`, 'damage');
+      if (monster.hp <= 0) {
+        log(`${monster.name} is defeated!`, 'death');
+        monsters = monsters.filter(m => m !== monster);
+        gainXp(monster.xp);
+        kills++;
+      }
+    } else if (door && !door.open) {
+      if (door.locked && Math.random() < 0.5) {
+        door.open = true;
+        dungeon.tiles[targetY][targetX] = '\'';
+        log('You kick the door open!');
+      } else if (!door.locked) {
+        door.open = true;
+        dungeon.tiles[targetY][targetX] = '\'';
+        log('You kick the door open!');
+      } else {
+        log('CRUNCH! The door splinters but holds.');
+      }
+    } else {
+      log('You kick at the empty air.');
+    }
+    processTurn();
+  },
+
+  throw: (dx, dy) => {
+    if (!currentActionContext?.item) { log('No item selected to throw!', 'damage'); return; }
+    const item = currentActionContext.item;
+    if (!safeSpendAP(AP_COSTS.THROW, 'throw')) return;
+
+    let tx = player.x, ty = player.y;
+    let hitMonster = null;
+
+    while (true) {
+      tx += dx; ty += dy;
+      if (tx < 0 || tx >= WIDTH || ty < 0 || ty >= HEIGHT) break;
+      if (dungeon.tiles[ty][tx] === '#') break;
+      hitMonster = monsters.find(m => m.x === tx && m.y === ty);
+      if (hitMonster) break;
+    }
+
+    if (hitMonster) {
+      const base = item.damage || 2;
+      const damage = rollDice(1, Math.max(2, base));
+      hitMonster.hp -= damage;
+      log(`You throw ${item.name} and hit ${hitMonster.name} for ${damage} damage!`, 'damage');
+      if (hitMonster.hp <= 0) handleEntityDeath(player, hitMonster);
+      else applyItemEffectToMonster(item, hitMonster);
+    } else {
+      log(`You throw ${item.name}, but it lands on the ground.`, 'info');
+      items.push({ ...item, x: tx, y: ty });
+    }
+
+    // Unequip if throwing equipped gear
+if (item === player.weapon) player.weapon = null;
+if (item === player.armor) player.armor = null;
+
+player.inventory = player.inventory.filter(i => i !== item);
+updateStats();
+processTurn();
+  },
+
+  zap: (dx, dy) => {
+  // 1) No wand?
+  if (!currentActionContext?.item || currentActionContext.item.type !== 'wand') {
+    log('No wand selected to zap!', 'damage');
+    return;
+  }
+
+  const wand = currentActionContext.item;
+
+  // 2) Wand already dead?
+  if (wand.charges <= 0) {
+    log(`Your ${wand.name} crumbles to dust.`, 'damage');
+    const idx = player.inventory.indexOf(wand);
+    if (idx > -1) player.inventory.splice(idx, 1);
+
+    // ❗ Only one processTurn(), then stop here
+    processTurn();
+    return;
+  }
+
+  // 3) Spend AP and fire
+  if (!safeSpendAP(AP_COSTS.ZAP, 'zap')) return;
+  wand.charges--;
+
+  // 4) Beam trace…
+  let tx = player.x, ty = player.y, hitMonster = null;
+  while (true) {
+    tx += dx; ty += dy;
+    if (tx < 0 || tx >= WIDTH || ty < 0 || ty >= HEIGHT) break;
+    if (dungeon.tiles[ty][tx] === '#') break;
+    hitMonster = monsters.find(m => m.x === tx && m.y === ty);
+    if (hitMonster) break;
+  }
+
+  if (hitMonster) {
+    switch (wand.effect) {
+      case 'strike': {
+        const dmg = rollDice(1, 6, 2);
+        hitMonster.hp -= dmg;
+        log(`A bolt from your ${wand.name} strikes ${hitMonster.name} for ${dmg} damage!`, 'damage');
+        if (hitMonster.hp <= 0) handleEntityDeath(player, hitMonster);
+        break;
+      }
+      case 'teleport':
+        teleportMonster(hitMonster);
+        break;
+      default:
+        log('The wand sputters with no visible effect.', 'info');
+    }
+  } else {
+    log('The wand discharges harmlessly.', 'info');
+  }
+
+  // 5) Crumble if that was the last charge
+  if (wand.charges <= 0) {
+    log(`Your ${wand.name} crumbles to dust.`, 'damage');
+    const idx2 = player.inventory.indexOf(wand);
+    if (idx2 > -1) player.inventory.splice(idx2, 1);
+  }
+
+  // 6) Finally, one turn advance
+  processTurn();
+},
+
+  apply: (dx, dy) => {
+    if (!currentActionContext?.item || currentActionContext.item.type !== 'tool') {
+      log('No tool equipped to apply!', 'damage'); return;
+    }
+    const tool = currentActionContext.item;
+    if (!safeSpendAP(AP_COSTS.APPLY, 'apply')) return;
+
+    const targetX = player.x + dx;
+    const targetY = player.y + dy;
+    const tile = dungeon.tiles[targetY]?.[targetX];
+
+    if (tool.baseName === 'pick-axe' && tile === '#') {
+      dungeon.tiles[targetY][targetX] = '.';
+      log('You dig through the wall with your pick-axe!', 'pickup');
+    } else {
+      log(`You can’t find a use for the ${tool.name} here.`, 'info');
+    }
+    processTurn();
+  },
+
+  search: () => {
+    doSearch();
+  },
+
+  pray: () => {
+    pray();
+  },
+
+  engrave: () => {
+    engrave();
+  }
+};
+    function executeActionWithDirection(dx, dy) {
+  if (!currentActionContext) return;
+  const { action } = currentActionContext;
+  if (actionHandlers[action]) {
+    actionHandlers[action](dx, dy);
+  }
+  cancelActionModes();
+}
+
+    function handleInventoryClick(event, item) {
+      if (currentActionContext) {
+        currentActionContext.item = item;
+        log(`Selected ${getItemDisplayName(item)} to ${currentActionContext.action}. Choose a direction.`, 'info');
+        updateStats();
+      } else {
+        if (itemAction === 'use') useItem(item);
+        else dropItem(item);
+      }
+    }
+
+    function waitAction() {
+      if (player.paralyzedTurns > 0) { log('You are paralyzed!', 'damage'); processTurn(); return; }
+      if (player.ap < AP_COSTS.WAIT) { log('Not enough AP to wait!', 'damage'); return; }
+      player.ap -= AP_COSTS.WAIT; log('You wait a moment.', 'info'); processTurn();
+    }
+
+    function doSearch() {
+      if (!safeSpendAP(AP_COSTS.SEARCH, 'search')) return;
+
+      let foundSomething = false;
+
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const tx = player.x + dx;
+        const ty = player.y + dy;
+
+        const trap = traps.find(t => t.x === tx && t.y === ty && t.hidden);
+        if (trap && Math.random() < 0.35) {
+          trap.hidden = false;
+          log(`You found a hidden ${trap.name}!`, 'pickup');
+          needsRedraw = true;
+          foundSomething = true;
+        }
+
+        const secretDoor = dungeon.features.find(f => f.x === tx && f.y === ty && f.type === 'door' && f.locked && !f.discovered);
+        if (secretDoor && Math.random() < 0.3) {
+          secretDoor.discovered = true;
+          log('You found a secret door!', 'pickup');
+          needsRedraw = true;
+          foundSomething = true;
+        }
+
+        const hiddenItem = items.find(i => i.x === tx && i.y === ty && i.hidden);
+        if (hiddenItem && Math.random() < 0.4) {
+          hiddenItem.hidden = false;
+          log(`You found a hidden ${hiddenItem.name}!`, 'pickup');
+          needsRedraw = true;
+          foundSomething = true;
+        }
+      }
+
+      if (!foundSomething) log('You search the immediate area, finding nothing.', 'info');
+      processTurn();
+    }
+// --- Stairs detection helper ---
+function isStairsAt(x, y) {
+  if (dungeon.tiles[y]?.[x] === '>') return true;
+  return items.some(i => i.x === x && i.y === y && i.isStairs);
+}
+    function movePlayer(dx, dy) {
+      if (currentActionContext) { executeActionWithDirection(dx, dy); return; }
+      // Immediate descent if stairs (tile or item layer)
+      if (isStairsAt(player.x, player.y)) {
+        descendStairs();
+      return;
+}
+      if (player.isLooking) { moveLookCursor(dx, dy); return; }
+      if (player.paralyzedTurns > 0) { log('You are paralyzed!', 'damage'); processTurn(); return; }
+      if (player.ap < AP_COSTS.MOVE) { log('Not enough AP to move!', 'damage'); return; }
+      let newX = player.x + dx, newY = player.y + dy;
+      if (player.confusionTurns > 0) { newX = player.x + Math.floor(Math.random() * 3) - 1; newY = player.y + Math.floor(Math.random() * 3) - 1; }
+      if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) return;
+
+      const targetTile = dungeon.tiles[newY][newX];
+      const door = dungeon.features.find(f => f.x === newX && f.y === newY && f.type === 'door');
+
+      if (targetTile === '#') { log('You bump into the wall.', 'info'); return; }
+      if (door && !door.open) {
+        if (door.locked) {
+          const key = player.inventory.find(i => i.type === 'key');
+          if (key) { door.locked = false; log('You unlock the door.', 'pickup'); player.inventory.splice(player.inventory.indexOf(key), 1); }
+          else {
+            log('The door is locked! You try to bash it down.', 'damage');
+            if (!safeSpendAP(AP_COSTS.BASH_DOOR, 'bash door')) return;
+            if (Math.random() < 0.3) { door.open = true; dungeon.tiles[newY][newX] = '\''; log('The door breaks open!', 'pickup'); }
+            else log('The door holds firm.', 'info');
+            processTurn(); return;
+          }
+        } else {
+          if (!safeSpendAP(AP_COSTS.OPEN_DOOR, 'open door')) return;
+          door.open = true;
+          dungeon.tiles[newY][newX] = '\'';
+          log('You open the door.', 'info');
+        }
+      } else {
+        let monster = monsters.find(m => m.x === newX && m.y === newY);
+        if (monster) {
+          attack(player, monster);
+        } else {
+          player.x = newX; player.y = newY; player.lookCursor = { x: newX, y: newY }; player.ap -= AP_COSTS.MOVE;
+          checkTrap(player.x, player.y);
+          if (targetTile === '>') { descendStairs(); return; }
+          const itemsHere = items.filter(i => i.x === player.x && i.y === player.y);
+          if (itemsHere.length > 0) log(`You see here: ${itemsHere.map(getItemDisplayName).join(', ')}.`, 'info');
+
+          // pickup loop copies to avoid mutation issues
+          itemsHere.slice().forEach(item => {
+            if (item.isStairs) return;
+            if (item.type === 'gold') {
+              player.gold += item.value;
+              log(`You picked up ${item.value} gold.`, 'pickup');
+              items = items.filter(i => i !== item);
+            } else if (player.inventory.length < player.inventoryMaxItems) {
+              player.inventory.push(item);
+              log(`You picked up a ${getItemDisplayName(item)}.`, 'pickup');
+              items = items.filter(i => i !== item);
+            } else {
+              log(`Inventory full. You can't pick up the ${getItemDisplayName(item)}.`, 'damage');
+            }
+          });
+        }
+      }
+      processTurn();
+    }
+
+    function moveLookCursor(dx, dy) {
+  player.lookCursor.x = Math.max(0, Math.min(WIDTH - 1, player.lookCursor.x + dx));
+  player.lookCursor.y = Math.max(0, Math.min(HEIGHT - 1, player.lookCursor.y + dy));
+
+  const mapX = player.lookCursor.x;
+  const mapY = player.lookCursor.y;
+
+  let targetName = 'the floor';
+  let targetHP = '';
+
+  if (explored[mapY][mapX]) {
+    const monster = monsters.find(m => m.x === mapX && m.y === mapY && visible[mapY][mapX]);
+    const item = items.find(i => i.x === mapX && i.y === mapY && visible[mapY][mapX] && !i.hidden);
+    const pet = pets.find(p => p.x === mapX && p.y === mapY && visible[mapY][mapX]);
+
+    if (monster) {
+      targetName = `the ${monster.name}`;
+      targetHP = ` (HP: ${monster.hp}/${monster.maxHp})`;
+    } else if (pet) {
+      targetName = `your ${pet.name}`;
+      targetHP = ` (HP: ${pet.hp}/${pet.maxHp})`;
+    } else if (item) {
+      targetName = `a ${item.name}`;
+    } else {
+      const feature = dungeon.features.find(f => f.x === mapX && f.y === mapY);
+      if (feature) {
+        targetName = `a ${feature.type}`;
+      } else {
+        const tile = dungeon.tiles[mapY][mapX];
+        if (tile === '#') targetName = 'a wall';
+        else if (tile === '.') targetName = 'the floor';
+        else if (tile === '>') targetName = 'stairs down';
+        else if (tile === '\'') targetName = 'an open door';
+        else if (tile === '+') targetName = 'a closed door';
+        else targetName = 'unremarkable terrain';
+      }
+    }
+  } else {
+    targetName = 'unexplored darkness';
+  }
+
+  log(`You see ${targetName}${targetHP}.`, 'info');
+  needsRedraw = true;
+}
+
+    function kick() {
+      log('Kick in which direction?', 'info');
+      currentActionContext = { action: 'kick' };
+    }
+
+ 
+    function pray() {
+      if (!safeSpendAP(AP_COSTS.PRAY, 'pray')) return;
+      const feature = dungeon.features.find(f => f.x === player.x && f.y === player.y && f.type === 'altar');
+      if (feature) {
+        log('You pray at the altar...', 'pickup');
+        const roll = Math.random();
+        if (roll < 0.3) { log('A divine light heals your wounds.', 'pickup'); player.hp = player.maxHp; updateStats(); }
+        else if (roll < 0.6) {
+          log('Your plea is answered with a gift!', 'pickup');
+          spawnItems(1);
+          const newItem = items[items.length-1]; newItem.x=player.x; newItem.y=player.y;
+          log(`${newItem.name} appears.`, 'pickup');
+        }
+        else if (roll < 0.9) {
+          log('The gods are angered! A monster appears.', 'damage');
+          const roomForSpawn = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+          const pos = findWalkableAdjacent(player.x, player.y) || findWalkable(roomForSpawn);
+          const spawnType = MONSTER_TYPES[Math.floor(Math.random() * MONSTER_TYPES.length)];
+          monsters.push({ ...pos, ...spawnType, maxHp: spawnType.hp, ap: 0, state: 'wandering' });
+        }
+        else log('Your prayer goes unanswered.', 'info');
+      } else {
+        log('You pray, but nothing happens here.', 'info');
+      }
+      processTurn();
+    }
+
+    function engrave() {
+      if (!safeSpendAP(AP_COSTS.ENGRAVE, 'engrave')) return;
+      const existingEngraving = dungeon.engravings.find(e => e.x === player.x && e.y === player.y);
+      if (existingEngraving) {
+        log('You add to the engraving on the floor.', 'info');
+      } else {
+        dungeon.engravings.push({ x: player.x, y: player.y, text: 'Elbereth' });
+        dungeon.tiles[player.y][player.x] = 'E';
+        log('You engrave "Elbereth" in the dust.', 'pickup');
+      }
+      processTurn();
+    }
+
+    function descendStairs() {
+      dungeonLevel++;
+      log(`You descend to depth ${dungeonLevel}.`, 'pickup');
+      initGame(false);
+    }
+
+    // ---- Traps & Teleport ----
+    function checkTrap(x, y) {
+      const trap = traps.find(t => t.x === x && t.y === y);
+      if (trap) {
+        if (trap.hidden) { log('You found a trap!', 'damage'); trap.hidden = false; needsRedraw = true; }
+        if (trap.damage) { log(`You were hurt by a ${trap.name}!`, 'damage'); takeDamage(trap.damage); }
+        else if (trap.teleport) { log('You are suddenly teleported!', 'damage'); teleportPlayer(); }
+        else if (trap.poison) { log('You feel a stinging pain... you are poisoned!', 'damage'); player.poisonTurns += trap.poison; }
         return true;
       }
       return false;
     }
-    function checkLevelUp() {
-      while (player.xp >= player.level * 20) {
-        player.level++;
-        player.maxHp += 5;
-        player.hp = player.maxHp;
-        player.hitChance = Math.min(95, player.hitChance + 5);
-        log(`Level ${player.level}!`, 'pickup');
-      }
+
+    function teleportPlayer() {
+      let newPos = findWalkable();
+      player.x = newPos.x; player.y = newPos.y;
+      player.lookCursor = { x: newPos.x, y: newPos.y };
+      computeFOV(player.x, player.y, 8);
       updateStats();
     }
-    function moveEntity(entity, dx, dy) {
-      let newX = entity.x + dx;
-      let newY = entity.y + dy;
-      if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) return false;
-      if (dungeon.tiles[newY][newX] === '#') return false;
-      if (entity === player) {
-        let m = monsters.find(m => m.x === newX && m.y === newY);
-        if (m) {
-          attack(player, m);
-          return true;
-        }
-        let item = items.find(i => i.x === newX && i.y === newY);
-        if (item) {
-          if (item.isStairs) {
-            dungeonLevel++;
-            log(`Descend to level ${dungeonLevel}!`, 'pickup');
-            initGame();
-            return true;
-          }
-          if (item.value) {
-            player.gold += item.value;
-            log(`+${item.value} gold!`, 'pickup');
-            items = items.filter(i => i !== item);
-          } else if (item.damage || item.heal) {
-            let total = player.inventory.reduce((s, i) => s + i.count, 0);
-            if (total >= player.inventoryMaxItems) {
-              log('Inventory full!', 'damage');
-              return false;
-            }
-            let ex = player.inventory.find(i => i.name === item.name);
-            if (ex) {
-              ex.count++;
-            } else if (player.inventory.length < player.inventorySize) {
-              player.inventory.push({ ...item, count: 1 });
-            } else {
-              log('Too many item types!', 'damage');
-              return false;
-            }
-            log(`Picked up ${item.name}!`, 'pickup');
-            items = items.filter(i => i !== item);
-          }
-          updateStats();
-        }
-        let trap = traps.find(t => t.x === newX && t.y === newY);
-        if (trap) {
-          trap.hidden = false;
-          if (trap.damage) {
-            player.hp -= trap.damage;
-            log(`Trap! -${trap.damage} HP!`, 'damage');
-            if (player.hp <= 0) {
-              log('You died!', 'death');
-              setTimeout(showDeathScreen, 500);
-            }
-          } else if (trap.teleport) {
-            let pos = findWalkable();
-            player.x = pos.x;
-            player.y = pos.y;
-            log('Teleported!', 'pickup');
-            traps = traps.filter(t => t !== trap);
-            computeFOV(player.x, player.y, 8);
-            updateStats();
-            return true;
-          } else if (trap.poison) {
-            player.poisonTurns = trap.poison;
-            player.hp -= 1;
-            log(`Poisoned for ${trap.poison} turns!`, 'damage');
-            if (player.hp <= 0) {
-              log('You died!', 'death');
-              setTimeout(showDeathScreen, 500);
-            }
-          }
-          traps = traps.filter(t => t !== trap);
-          updateStats();
+
+    function teleportMonster(monster) {
+      let newPos = findWalkable();
+      monster.x = newPos.x; monster.y = newPos.y;
+      log(`${monster.name} vanishes in a puff of smoke!`, 'pickup');
+    }
+
+    // ---- Monsters AI ----
+    function lineOfSight(x1, y1, x2, y2) {
+      let dx = Math.abs(x2 - x1); let dy = -Math.abs(y2 - y1);
+      let sx = x1 < x2 ? 1 : -1; let sy = y1 < y2 ? 1 : -1;
+      let err = dx + dy;
+      while (true) {
+        if (x1 === x2 && y1 === y2) return true;
+        if (dungeon.tiles[y1][x1] === '#' || dungeon.tiles[y1][x1] === '+') return false;
+        let e2 = 2 * err;
+        if (e2 >= dy) { err += dy; x1 += sx; }
+        if (e2 <= dx) { err += dx; y1 += sy; }
+      }
+    }
+    // ---- Unified projectile executor ----
+function throwProjectile(source, item, dx, dy, options = {}) {
+  let tx = source.x;
+  let ty = source.y;
+
+  while (true) {
+    tx += dx; ty += dy;
+    if (tx < 0 || tx >= WIDTH || ty < 0 || ty >= HEIGHT) break;
+    if (dungeon.tiles[ty][tx] === '#') break;
+
+    // Player collision
+    if (tx === player.x && ty === player.y) {
+      const base = item.damage || 2;
+      const damage = rollDice(1, Math.max(2, base));
+      takeDamage(damage);
+      log(`${source.name || 'Something'} hits you with a ${item.name} for ${damage} damage!`, 'damage');
+      return;
+    }
+
+    // Pet collision
+    const hitPet = pets.find(p => p.x === tx && p.y === ty);
+    if (hitPet) {
+      const base = item.damage || 2;
+      const damage = rollDice(1, Math.max(2, base));
+      hitPet.hp -= damage;
+      log(`${source.name || 'Something'} hits your ${hitPet.name} with a ${item.name} for ${damage} damage!`, 'damage');
+      if (hitPet.hp <= 0) handleEntityDeath(source, hitPet);
+      return;
+    }
+
+    // Monster collision
+    const hitMonster = monsters.find(m => m.x === tx && m.y === ty);
+    if (hitMonster) {
+      const base = item.damage || 2;
+      const damage = rollDice(1, Math.max(2, base));
+      hitMonster.hp -= damage;
+      log(`${source.name || 'Something'} hits ${hitMonster.name} with a ${item.name} for ${damage} damage!`, 'damage');
+      if (hitMonster.hp <= 0) handleEntityDeath(source, hitMonster);
+      return;
+    }
+  }
+
+  if (options.allowDrop !== false) {
+    items.push({ ...item, x: tx, y: ty });
+  }
+}
+// ---- Trap cadence processor ----
+// Called each cadence tick to let traps act
+function processTrapCadence(trap) {
+  if (trap.apRegen == null) return; // skip non-actor traps
+
+  // Only check threshold; regen happens in regenerateAP()
+  if ((trap.ap || 0) < AP_COSTS.THROW) return;
+
+  let ammo = null;
+  if (trap.hasBoulder) ammo = { ...ENEMY_ITEMS.boulder };
+  else if (trap.hasDart) ammo = { ...ENEMY_ITEMS.dart };
+  if (!ammo) return;
+
+  if (!hasLineOfSight(trap.x, trap.y, player.x, player.y)) return;
+  const { dx, dy } = pickCardinalDirection(trap.x, trap.y, player.x, player.y);
+
+  // Spend AP to fire
+  if (!spendAP(trap, AP_COSTS.THROW, 'trap fire')) return;
+
+  throwProjectile(trap, ammo, dx, dy, { allowDrop: false });
+}
+function petAction(pet) {
+      if (pet.ap < pet.apRegen) return;
+
+      const distToPlayer = Math.hypot(player.x - pet.x, player.y - pet.y);
+      const nearbyMonster = monsters.find(m => Math.hypot(m.x - pet.x, m.y - pet.y) < 1.5);
+
+      if (nearbyMonster) {
+        attack(pet, nearbyMonster);
+      } else if (distToPlayer > 2) {
+        let moveX = pet.x + Math.sign(player.x - pet.x);
+        let moveY = pet.y + Math.sign(player.y - pet.y);
+        if (isWalkable(moveX, moveY) && !monsters.some(m => m.x === moveX && m.y === moveY) && !pets.some(p0 => p0.x === moveX && p0.y === moveY && p0 !== pet) && !(player.x === moveX && player.y === moveY)) {
+          pet.x = moveX; pet.y = moveY;
         }
       }
-      entity.x = newX;
-      entity.y = newY;
-      return true;
+      pet.ap -= pet.apRegen;
     }
-    function getPath(startX, startY, targetX, targetY) {
-      let openSet = [{ x: startX, y: startY, f: 0, g: 0, h: 0 }];
-      let closedSet = new Set();
-      let cameFrom = new Map();
-      const calculateH = (x, y) => Math.abs(x - targetX) + Math.abs(y - targetY);
-      while (openSet.length > 0) {
-        openSet.sort((a, b) => a.f - b.f);
-        let current = openSet.shift();
-        if (current.x === targetX && current.y === targetY) {
-          let path = [];
-          let curr = { x: current.x, y: current.y };
-          while (cameFrom.has(`${curr.x},${curr.y}`)) {
-            path.unshift({ x: curr.x, y: curr.y });
-            curr = cameFrom.get(`${curr.x},${curr.y}`);
-          }
-          if (path.length > 0 && path[0].x === startX && path[0].y === startY) {
-            path.shift();
-          }
-          return path;
-        }
-        closedSet.add(`${current.x},${current.y}`);
-        for (let [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
-          let newX = current.x + dx;
-          let newY = current.y + dy;
-          if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) continue;
-          if (dungeon.tiles[newY][newX] === '#') continue;
-          if ((newX !== targetX || newY !== targetY) && monsters.some(m => m.x === newX && m.y === newY)) continue;
-          if (items.some(i => i.x === newX && i.y === newY)) continue;
-          if (traps.some(t => t.x === newX && t.y === newY && !t.teleport)) continue;
-          if (closedSet.has(`${newX},${newY}`)) continue;
-          let g = current.g + 1;
-          let h = calculateH(newX, newY);
-          let f = g + h;
-          let existing = openSet.find(node => node.x === newX && node.y === newY);
-          if (!existing) {
-            openSet.push({ x: newX, y: newY, f, g, h });
-            cameFrom.set(`${newX},${newY}`, { x: current.x, y: current.y });
-          } else if (g < existing.g) {
-            existing.f = f;
-            existing.g = g;
-            cameFrom.set(`${newX},${newY}`, { x: current.x, y: current.y });
-          }
+
+    function monsterAction(monster) {
+      if (monster.ap < monster.apRegen) return;
+      const distToPlayer = Math.hypot(player.x - monster.x, player.y - monster.y);
+      const canSeePlayer = distToPlayer < 8 && lineOfSight(monster.x, monster.y, player.x, player.y);
+
+      const engraving = dungeon.engravings.find(e => e.x === monster.x && e.y === monster.y);
+      if (engraving && engraving.text === 'Elbereth' && Math.random() < 0.9) {
+        log(`${monster.name} fears to tread on the engraving!`, 'info');
+        monster.ap -= monster.apRegen;
+        return;
+      }
+
+      const fleeHealth = monster.behavior === 'coward' ? monster.maxHp * 0.75 : monster.maxHp * 0.25;
+      if (canSeePlayer) {
+        monster.state = monster.hp < fleeHealth ? 'fleeing' : 'chasing';
+      } else if (monster.state === 'chasing' || monster.state === 'fleeing') {
+        monster.state = 'wandering';
+      }
+
+      if (monster.behavior === 'erratic' && Math.random() < 0.5) {
+        const dx = Math.floor(Math.random() * 3) - 1; const dy = Math.floor(Math.random() * 3) - 1;
+        let moveX = monster.x + dx; let moveY = monster.y + dy;
+        if (isWalkable(moveX, moveY) && !monsters.some(m => m.x === moveX && m.y === moveY) && !(player.x === moveX && player.y === moveY)) {
+          monster.x = moveX; monster.y = moveY; monster.ap -= monster.apRegen; return;
         }
       }
-      return [];
-    }
-    function moveMonsters() {
-      monsters.sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y));
-      for (let m of monsters) {
-        if (player.hp <= 0) return;
-        if (Math.abs(m.x - player.x) <= 1 && Math.abs(m.y - player.y) <= 1) {
-          attack(m, player);
+
+      if (monster.state === 'fleeing') {
+        const dx = Math.sign(monster.x - player.x); const dy = Math.sign(monster.y - player.y);
+        let moveX = monster.x + dx; let moveY = monster.y + dy;
+        if (isWalkable(moveX, moveY) && !monsters.some(m => m.x === moveX && m.y === moveY) && !(player.x === moveX && player.y === moveY)) {
+          monster.x = moveX; monster.y = moveY; monster.ap -= monster.apRegen;
+        }
+      } else if (monster.state === 'chasing') {
+        if (monster.behavior === 'ranged' && distToPlayer > 1.5) {
+          log(`${monster.name} zaps you from afar!`, 'damage');
+          takeDamage(rollDice(1,4));
+          monster.ap -= monster.apRegen;
+        } else if (distToPlayer < 1.5) {
+          attack(monster, player);
         } else {
-          let path = getPath(m.x, m.y, player.x, player.y);
-          if (path.length > 0) {
-            let next = path[0];
-            moveEntity(m, next.x - m.x, next.y - m.y);
+          let moveX = monster.x; let moveY = monster.y;
+          if (Math.abs(player.x - monster.x) > Math.abs(player.y - monster.y)) moveX += Math.sign(player.x - monster.x);
+          else moveY += Math.sign(player.y - monster.y);
+          if (isWalkable(moveX, moveY) && !monsters.some(m => m.x === moveX && m.y === moveY) && !(player.x === moveX && player.y === moveY)) {
+            monster.x = moveX; monster.y = moveY; monster.ap -= monster.apRegen;
+          }
+        }
+      } else {
+        if (Math.random() < 0.5) {
+          const dx = Math.floor(Math.random() * 3) - 1; const dy = Math.floor(Math.random() * 3) - 1;
+          let moveX = monster.x + dx; let moveY = monster.y + dy;
+          if (isWalkable(moveX, moveY) && !monsters.some(m => m.x === moveX && m.y === moveY) && !(player.x === moveX && player.y === moveY)) {
+            monster.x = moveX; monster.y = moveY; monster.ap -= monster.apRegen;
           }
         }
       }
-    }
-    function handleTurnEnd() {
-      if (player.poisonTurns > 0) {
-        player.hp -= 1;
-        player.poisonTurns--;
-        log(`Poison! -1 HP`, 'damage');
-        if (player.hp <= 0) {
-          log('Died from poison!', 'death');
-          setTimeout(showDeathScreen, 500);
-          return;
+
+      // Divider behavior: split safely
+      if (monster.behavior === 'divider' && monster.hp < monster.maxHp && Math.random() < 0.05) {
+        const pos = findWalkableAdjacent(monster.x, monster.y);
+        if (pos) {
+          log(`${monster.name} divides!`, 'damage');
+          const newSlime = { ...monster, x: pos.x, y: pos.y, hp: Math.ceil(monster.hp/2), maxHp: monster.maxHp, ap: 0 };
+          monster.hp = Math.ceil(monster.hp/2);
+          monsters.push(newSlime);
+        }
+      } else if (monster.behavior === 'equipper' && !monster.weapon) {
+  // skip index 0 (stairs) by slicing the array, New equipper logic—skip stairs explicitly
+const weaponOnGround = items.find(i =>
+  i.x === monster.x &&
+  i.y === monster.y &&
+  i.type === 'weapon' &&
+  !i.isStairs
+);
+
+  if (weaponOnGround) {
+    monster.weapon = weaponOnGround;
+    items = items.filter(i => i !== weaponOnGround);
+    log(`${monster.name} picks up and wields a ${weaponOnGround.name}!`, 'damage');
+  }
+}
+}
+    // ---- Turn ----
+function processTurn() {
+  turn++;
+
+  if (player.paralyzedTurns > 0) {
+    player.paralyzedTurns--;
+    if (player.paralyzedTurns === 0) log('You can move again!', 'pickup');
+    else log('You are paralyzed!', 'damage');
+  }
+
+  applyStatusEffects();
+  monsters.forEach(m => monsterAction(m));
+  pets.forEach(p => petAction(p));
+  traps.forEach(t => processTrapCadence(t));
+
+  regenerateAP(); // <-- single unified regen call
+
+  computeFOV(player.x, player.y, 8);
+  updateStats();
+  autosave();
+
+  if (player.hp <= 0) showRestartModal();
+  needsRedraw = true;
+}
+
+    // ---- Rendering ----
+    function gameLoop() {
+      requestAnimationFrame(gameLoop);
+      if (!needsRedraw) return;
+
+      let focusX = player.isLooking ? player.lookCursor.x : player.x;
+      let focusY = player.isLooking ? player.lookCursor.y : player.y;
+      const { offsetX, offsetY } = getCameraOffset(focusX, focusY);
+
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.textAlign = 'start'; ctx.textBaseline = 'bottom';
+
+      for (let viewY = 0; viewY < VIEW_HEIGHT; viewY++) {
+        for (let viewX = 0; viewX < VIEW_WIDTH; viewX++) {
+          let mapX = offsetX + viewX; let mapY = offsetY + viewY;
+          if (mapX >= WIDTH || mapY >= HEIGHT) continue;
+          const isVisible = visible[mapY][mapX];
+          if (!explored[mapY][mapX] && !isVisible) continue;
+
+          let tileChar = dungeon.tiles[mapY][mapX];
+          let tileColor = isVisible ? '#0f0' : '#050';
+          if (tileChar === '{') tileColor = isVisible ? '#0af' : '#035';
+          if (tileChar === '+') tileColor = isVisible ? '#f80' : '#530';
+          if (tileChar === '\'') tileColor = isVisible ? '#c60' : '#420';
+          if (tileChar === '_') tileColor = isVisible ? '#fff' : '#444';
+          if (tileChar === 'E') {
+            const engrave = dungeon.engravings.find(e=>e.x===mapX && e.y===mapY);
+            tileChar = engrave ? '"' : '.';
+            tileColor = isVisible ? '#ff0' : '#550';
+          }
+
+          ctx.fillStyle = tileColor;
+          ctx.fillText(tileChar, viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE);
+          if (!isVisible) continue;
+
+          let item = items.find(i => i.x === mapX && i.y === mapY && !i.hidden);
+          if (item) { ctx.fillStyle = item.color; ctx.fillText(item.glyph, viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE); continue; }
+          let trap = traps.find(t => t.x === mapX && t.y === mapY);
+          if (trap && !trap.hidden) { ctx.fillStyle = trap.color; ctx.fillText(trap.glyph, viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE); continue; }
+          let monster = monsters.find(m => m.x === mapX && m.y === mapY);
+          if (monster) { ctx.fillStyle = monster.color; ctx.fillText(monster.glyph, viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE); continue; }
+          let pet = pets.find(p => p.x === mapX && p.y === mapY);
+          if (pet) { ctx.fillStyle = pet.color; ctx.fillText(pet.glyph, viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE); continue; }
         }
       }
-      moveMonsters();
-      if (player.hp > 0) {
-        computeFOV(player.x, player.y, 8);
-        updateStats();
-        gameLoop();
+      if (player.x >= offsetX && player.x < offsetX + VIEW_WIDTH && player.y >= offsetY && player.y < offsetY + VIEW_HEIGHT) {
+        ctx.fillStyle = player.color;
+        ctx.fillText(player.glyph, (player.x - offsetX) * TILE_SIZE, (player.y - offsetY + 1) * TILE_SIZE);
       }
+      if (player.isLooking && player.lookCursor.x >= offsetX && player.lookCursor.x < offsetX + VIEW_WIDTH && player.lookCursor.y >= offsetY && player.lookCursor.y < offsetY + VIEW_HEIGHT) {
+        const viewX = player.lookCursor.x - offsetX; const viewY = player.lookCursor.y - offsetY;
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+        ctx.fillRect(viewX * TILE_SIZE, viewY * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
+      needsRedraw = false;
+      updateDebugOverlay();
     }
-    function handleMove(dx, dy) {
-      if (player.hp <= 0) return;
-      if (dx === 0 && dy === 0) { log('Wait', 'pickup'); turn++; handleTurnEnd(); }
-      else { if (moveEntity(player, dx, dy)) { turn++; handleTurnEnd(); } else gameLoop(); }
+
+    // ---- Debug Overlay ----
+    function updateDebugOverlay() {
+      const el = document.getElementById('debug-overlay');
+      if (!el || el.style.display === 'none') return;
+      el.innerHTML = [
+        `Turn: ${turn}`,
+        `Depth: ${dungeonLevel}`,
+        `Monsters: ${monsters.length}`,
+        `Items: ${items.length}`,
+        `Traps: ${traps.length}`,
+        `Player: (${player.x},${player.y}) HP ${player.hp}/${player.maxHp} AP ${player.ap}/${player.maxAp}`
+      ].join('<br/>');
     }
-    function showDeathScreen() {
+// === Secret Dev Mode Overlay ===
+let DEV_MODE = false;
+let fingerCountTimeout = null;
+
+function toggleDevMode(forceState) {
+  DEV_MODE = (typeof forceState === 'boolean') ? forceState : !DEV_MODE;
+  DEV_MODE ? showDevOverlay() : hideDevOverlay();
+}
+
+// --- Desktop toggle: Ctrl+D ---
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+    e.preventDefault();
+    toggleDevMode();
+  }
+});
+
+// --- Mobile toggle: double-tap top-left corner ---
+document.addEventListener('dblclick', (e) => {
+  if (e.clientX < 100 && e.clientY < 100) {
+    toggleDevMode();
+  }
+});
+
+// --- Mobile toggle alternative: three-finger tap ---
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length >= 3) {
+    clearTimeout(fingerCountTimeout);
+    fingerCountTimeout = setTimeout(toggleDevMode, 50);
+  }
+}, { passive: true });
+
+// --- Overlay creation ---
+function showDevOverlay() {
+  let overlay = document.getElementById('dev-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'dev-overlay';
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      bottom: '10px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      background: 'rgba(0,0,0,0.85)',
+      color: '#fff',
+      padding: '8px',
+      borderRadius: '8px',
+      zIndex: '9999',
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: '8px'
+    });
+
+    overlay.innerHTML = `
+      <button data-dev="kick-n">Kick ↑</button>
+      <button data-dev="throw-e">Throw →</button>
+      <button data-dev="zap-s">Zap ↓</button>
+      <button data-dev="spawn-rat">Spawn Rat</button>
+      <button data-dev="give-potion">Give Potion</button>
+      <button data-dev="close">Close</button>
+    `;
+
+    styleDevButtons(overlay);
+    overlay.addEventListener('click', handleDevAction);
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+}
+
+function hideDevOverlay() {
+  const overlay = document.getElementById('dev-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+// --- Styling helper ---
+function styleDevButtons(overlay) {
+  overlay.querySelectorAll('button').forEach(btn => {
+    Object.assign(btn.style, {
+      fontSize: '16px',
+      padding: '10px 14px',
+      borderRadius: '6px',
+      border: '1px solid #0f0',
+      background: '#002200',
+      color: '#0f0',
+      flex: '1 1 auto',
+      minWidth: '80px'
+    });
+  });
+}
+
+// --- Action handler ---
+function handleDevAction(e) {
+  const action = e.target?.getAttribute('data-dev');
+  if (!action) return;
+
+  if (action === 'close') {
+    toggleDevMode(false);
+    return;
+  }
+
+  // Setup helpers
+  const ensureMonsterNear = () => {
+    let m = monsters.find(mm => Math.hypot(mm.x - player.x, mm.y - player.y) <= 2);
+    if (!m) {
+      const type = MONSTER_TYPES.find(t => t.name === 'rat') || MONSTER_TYPES[0];
+      const pos = findWalkableAdjacent(player.x, player.y) || { x: player.x + 1, y: player.y };
+      monsters.push({ ...pos, ...type, maxHp: type.hp, ap: 0, state: 'wandering', weapon: null });
+      computeFOV(player.x, player.y, 8);
+      needsRedraw = true;
+    }
+  };
+
+  const ensureThrowable = () => {
+    const daggerType = ITEM_TYPES.find(i => i.baseName === 'dagger');
+    if (daggerType) {
+      const dagger = { ...daggerType, name: daggerType.baseName, identified: true, status: 'Normal' };
+      player.inventory.push(dagger);
+      updateStats();
+      currentActionContext = { action: 'throw', item: dagger };
+      log('Dev: readied a dagger to throw east.', 'info');
+    }
+  };
+
+  const ensureWand = () => {
+    const wandType = ITEM_TYPES.find(i => i.type === 'wand') || ITEM_TYPES.find(i => i.baseName?.includes('wand'));
+    if (wandType) {
+      const wand = { ...wandType, name: wandType.baseName || wandType.name, identified: true, charges: wandType.charges ?? 5, status: 'Normal' };
+      player.inventory.push(wand);
+      updateStats();
+      currentActionContext = { action: 'zap', item: wand };
+      log('Dev: readied a wand to zap south.', 'info');
+    }
+  };
+
+  // Action routing
+  switch (action) {
+    case 'kick-n':
+      actionHandlers.kick?.(0, -1);
+      break;
+    case 'throw-e':
+      ensureMonsterNear();
+      ensureThrowable();
+      actionHandlers.throw?.(1, 0);
+      break;
+    case 'zap-s':
+      ensureMonsterNear();
+      ensureWand();
+      actionHandlers.zap?.(0, 1);
+      break;
+    case 'spawn-rat': {
+      const type = MONSTER_TYPES.find(t => t.name === 'rat') || MONSTER_TYPES[0];
+      const pos = findWalkableAdjacent(player.x, player.y) || { x: player.x + 1, y: player.y };
+      monsters.push({ ...pos, ...type, maxHp: type.hp, ap: 0, state: 'wandering', weapon: null });
+      log('Dev: spawned a rat nearby.', 'info');
+      computeFOV(player.x, player.y, 8);
+      needsRedraw = true;
+      break;
+    }
+    case 'give-potion': {
+      const pot = ITEM_TYPES.find(i => i.type === 'potion') || ITEM_TYPES.find(i => i.baseName?.includes('potion'));
+      if (pot) {
+        const item = { ...pot, name: pot.baseName || pot.name, identified: true, status: 'Normal' };
+        player.inventory.push(item);
+        log(`Dev: added ${item.name} to inventory.`, 'pickup');
+        updateStats();
+      }
+      break;
+    }
+  }
+}
+    // ---- Modals ----
+    function showCharSelect() {
+      document.getElementById('char-select-modal').classList.add('show');
+    }
+
+    function showRestartModal() {
       document.getElementById('final-level').textContent = player.level;
       document.getElementById('final-gold').textContent = player.gold;
       document.getElementById('final-kills').textContent = kills;
       document.getElementById('final-turns').textContent = turn;
       document.getElementById('restart-modal').classList.add('show');
+      saveGame(true);
     }
-    document.addEventListener('keydown', e => {
-      if (player.hp <= 0) return;
-      let dx = 0, dy = 0;
-      if (e.key === 'ArrowUp' || e.key === 'k') dy = -1;
-      else if (e.key === 'ArrowDown' || e.key === 'j') dy = 1;
-      else if (e.key === 'ArrowLeft' || e.key === 'h') dx = -1;
-      else if (e.key === 'ArrowRight' || e.key === 'l') dx = 1;
-      else if (e.key === 'y') { dx = -1; dy = -1; }
-      else if (e.key === 'u') { dx = 1; dy = -1; }
-      else if (e.key === 'b') { dx = -1; dy = 1; }
-      else if (e.key === 'n') { dx = 1; dy = 1; }
-      else if (e.key === ' ') { e.preventDefault(); handleMove(0, 0); return; }
-      else if (e.key >= '1' && e.key <= '5') {
-        let i = parseInt(e.key) - 1;
-        if (itemAction === 'use') useItem(i);
-        else dropItem(i);
-        return;
-      }
-      else if (e.key === 'd') {
-        itemAction = 'drop';
-        document.getElementById('toggle-action').textContent = 'Drop Mode (On)';
-        log('Drop mode ON', 'pickup');
-        return;
-      }
-      else return;
-      e.preventDefault();
-      handleMove(dx, dy);
-    });
-    document.querySelectorAll('.control-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const dir = btn.dataset.dir;
+
+    // ---- Resize ----
+    function resizeCanvas() {
+      const containerWidth = document.getElementById('game-container').clientWidth;
+      const newTileSize = Math.max(12, Math.floor(containerWidth / VIEW_WIDTH));
+      TILE_SIZE = newTileSize;
+      canvas.width = VIEW_WIDTH * TILE_SIZE; canvas.height = VIEW_HEIGHT * TILE_SIZE;
+      ctx.font = `${Math.floor(TILE_SIZE * 0.9)}px monospace`;
+      needsRedraw = true;
+    }
+
+    // ---- Event Listeners ----
+    document.querySelectorAll('.control-btn').forEach(button => {
+      button.addEventListener('click', () => {
         let dx = 0, dy = 0;
-        if (dir === 'wait') handleMove(0, 0);
-        else { if (dir.includes('n')) dy = -1; if (dir.includes('s')) dy = 1; if (dir.includes('w')) dx = -1; if (dir.includes('e')) dx = 1; handleMove(dx, dy); }
+        const dir = button.getAttribute('data-dir');
+        switch (dir) {
+          case 'n': dy = -1; break; case 's': dy = 1; break; case 'e': dx = 1; break; case 'w': dx = -1; break;
+          case 'nw': dx = -1; dy = -1; break; case 'ne': dx = 1, dy = -1; break; case 'sw': dx = -1, dy = 1; break; case 'se': dx = 1, dy = 1; break;
+          case 'wait': waitAction(); return;
+        }
+        movePlayer(dx, dy);
       });
     });
-    document.getElementById('toggle-action').addEventListener('click', () => {
-      itemAction = itemAction === 'use' ? 'drop' : 'use';
-      document.getElementById('toggle-action').textContent = itemAction === 'drop' ? 'Drop Mode (On)' : 'Drop Mode (Off)';
-      log(itemAction === 'drop' ? 'Drop mode ON' : 'Drop mode OFF', 'pickup');
+
+    document.getElementById('look-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Cancel other modes, but don't touch isLooking
+        cancelActionModes();
+        player.isLooking = !player.isLooking;
+        const btn = document.getElementById('look-btn');
+        if (player.isLooking) {
+          btn.classList.add('action-mode');
+          // Ensure cursor is initialized when entering look mode
+        if (!player.lookCursor) {
+          player.lookCursor = { x: player.x, y: player.y };
+          
+        } else {
+          player.lookCursor.x = player.x;
+          player.lookCursor.y = player.y;
+        }
+        log('Look mode ON. Use direction keys to move the cursor.', 'info');
+          
+        } else {
+          btn.classList.remove('action-mode');
+          log('Look mode OFF.', 'info');
+          
+        }
+        needsRedraw = true;
+});
+
+    document.getElementById('throw-mode-btn').addEventListener('click', () => {
+      cancelActionModes();
+      currentActionContext = { action: 'throw', item: null };
+      document.getElementById('throw-mode-btn').classList.add('action-mode');
+      log('Throw mode ON: Select an item from inventory, then a direction.', 'info');
+      updateStats();
     });
-    document.getElementById('restart-btn').addEventListener('click', () => initGame(true));
-    function resizeCanvas() {
-      const w = window.innerWidth < 768 ? window.innerWidth - 40 : 640;
-      canvas.width = w;
-      canvas.height = (w / VIEW_WIDTH) * VIEW_HEIGHT;
-      TILE_SIZE = w / VIEW_WIDTH;
-      ctx.font = `${TILE_SIZE}px monospace`;
-      gameLoop();
-    }
+
+    document.getElementById('actions-btn').addEventListener('click', () => {
+      cancelActionModes();
+      document.getElementById('actions-modal').classList.add('show');
+    });
+
+    document.getElementById('actions-modal').addEventListener('click', (e) => {
+      const action = e.target.dataset.action;
+      if (action) {
+        document.getElementById('actions-modal').classList.remove('show');
+        switch (action) {
+          case 'search': doSearch(); break;
+          case 'pray': pray(); break;
+          case 'kick': kick(); break;
+          case 'engrave': engrave(); break;
+          case 'apply':
+            const tool = player.inventory.find(i => i.equipped && i.type === 'tool');
+            if (tool) {
+              currentActionContext = { action: 'apply', item: tool };
+              log(`Apply your ${tool.name} in which direction?`, 'info');
+            } else {
+              log('You must wield a tool to apply it.', 'damage');
+            }
+            break;
+          case 'zap':
+            currentActionContext = { action: 'zap', item: null };
+            log('Zap mode ON: Select a wand, then a direction.', 'info');
+            updateStats();
+            break;
+          case 'close': cancelActionModes(); break;
+        }
+      }
+    });
+
+    document.getElementById('toggle-action').addEventListener('click', (e) => {
+      e.preventDefault();
+      cancelActionModes();
+      itemAction = itemAction === 'use' ? 'drop' : 'use';
+      const btn = document.getElementById('toggle-action');
+      if (itemAction === 'drop') {
+        btn.textContent = 'Drop Mode'; btn.classList.add('drop-mode'); log('Drop mode ON.', 'info');
+      } else {
+        btn.textContent = 'Use/Drop Mode'; btn.classList.remove('drop-mode'); log('Use mode ON.', 'info');
+      }
+      updateStats();
+    });
+
+    document.getElementById('restart-btn').addEventListener('click', () => {
+      document.getElementById('restart-modal').classList.remove('show');
+      showCharSelect();
+    });
+
+    document.getElementById('char-select-modal').addEventListener('click', (e) => {
+      let role = null;
+      if (e.target.id === 'role-barbarian') role = 'Barbarian';
+      if (e.target.id === 'role-wizard') role = 'Wizard';
+      if (e.target.id === 'role-rogue') role = 'Rogue';
+      if (role) {
+        document.getElementById('char-select-modal').classList.remove('show');
+        initGame(true, role);
+        requestAnimationFrame(gameLoop);
+      }
+    });
+
+    document.getElementById('save-btn').addEventListener('click', () => saveGame(true));
+    document.getElementById('load-btn').addEventListener('click', () => loadGame());
+
+    document.getElementById('debug-toggle').addEventListener('click', () => {
+      const el = document.getElementById('debug-overlay');
+      if (!el) return;
+      el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
+      needsRedraw = true;
+    });
+
     window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-    initGame(true);
+    window.addEventListener('load', () => {
+      resizeCanvas();
+      showCharSelect();
+      // Service worker registration for offline play
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').then(() => {
+          log('Offline ready.', 'pickup');
+        }).catch(() => {
+          log('Offline setup failed.', 'damage');
+        });
+      }
+    });
   </script>
 </body>
 </html>
