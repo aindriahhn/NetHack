@@ -1220,23 +1220,6 @@ function pickCardinalDirection(ax, ay, bx, by) {
   if (Math.abs(dx) >= Math.abs(dy)) return { dx: Math.sign(dx), dy: 0 };
   return { dx: 0, dy: Math.sign(dy) };
 }
-// ---- Targeting utilities ----
-function hasLineOfSight(ax, ay, bx, by) {
-  let x = ax, y = ay;
-  const dx = Math.sign(bx - ax), dy = Math.sign(by - ay);
-  while (x !== bx || y !== by) {
-    x += dx; y += dy;
-    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return false;
-    if (dungeon.tiles[y][x] === '#') return false;
-  }
-  return true;
-}
-
-function pickCardinalDirection(ax, ay, bx, by) {
-  const dx = bx - ax, dy = by - ay;
-  if (Math.abs(dx) >= Math.abs(dy)) return { dx: Math.sign(dx), dy: 0 };
-  return { dx: 0, dy: Math.sign(dy) };
-}
 const actionHandlers = {
   kick: (dx, dy) => {
     if (!safeSpendAP(AP_COSTS.KICK, 'kick')) return;
