@@ -270,6 +270,9 @@
   <button id="load-btn" class="action-btn">📂 Load</button>
 </div>
     </div>
+    <div id="status-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px; border: 2px solid #0f0; background: #001100; margin: 8px 0; border-radius: 4px;">
+      <!-- Status boxes appear here -->
+    </div>
     <div id="inventory">
       <div>Inventory (Tap to Use/Drop/Throw):</div>
       <div id="inventory-list"></div>
@@ -509,7 +512,50 @@
     btn.textContent = '🔍 Search';
   }
 }
-
+function updateStatusGrid() {
+  const grid = document.getElementById('status-grid');
+  if (!grid) return;
+  
+  const statuses = [];
+  
+  // Collect active statuses
+  if (player.poisonTurns > 0) statuses.push({ icon: '☠️', label: 'PSN', turns: player.poisonTurns, color: '#0f0' });
+  if (player.confusionTurns > 0) statuses.push({ icon: '😵', label: 'CNF', turns: player.confusionTurns, color: '#ff0' });
+  if (player.strengthTurns > 0) statuses.push({ icon: '💪', label: 'STR', turns: player.strengthTurns, color: '#f00' });
+  if (player.speedTurns > 0) statuses.push({ icon: '⚡', label: 'SPD', turns: player.speedTurns, color: '#ff0' });
+  if (player.paralyzedTurns > 0) statuses.push({ icon: '🥶', label: 'PAR', turns: player.paralyzedTurns, color: '#0af' });
+  if (player.hp <= player.maxHp * 0.3) statuses.push({ icon: '❤️', label: 'LOW HP', color: '#f00' });
+  if (player.hunger <= 200) statuses.push({ icon: '🍖', label: 'STARV', color: '#f00' });
+  else if (player.hunger <= 500) statuses.push({ icon: '🍖', label: 'HGR', color: '#ff0' });
+  
+  // Add quick info boxes if fewer than 9 statuses
+  if (statuses.length < 9) {
+    statuses.push({ icon: '🗡️', label: 'Kills', value: kills, color: '#0af' });
+    statuses.push({ icon: '⏱️', label: 'Turn', value: turn, color: '#0af' });
+    const xpNeeded = LEVEL_XP_REQUIREMENTS[player.level] || '---';
+    statuses.push({ icon: '⭐', label: 'Next', value: xpNeeded - player.xp, color: '#0af' });
+  }
+  
+  // Fill grid
+  grid.innerHTML = '';
+  const cellsToShow = Math.min(9, statuses.length);
+  
+  for (let i = 0; i < cellsToShow; i++) {
+    const s = statuses[i];
+    const box = document.createElement('div');
+    box.style.cssText = `padding: 6px 4px; background: #002200; border: 2px solid ${s.color}; border-radius: 4px; text-align: center; font-size: 10px; color: ${s.color}; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50px;`;
+    
+    const displayValue = s.turns ? s.turns : (s.value !== undefined ? s.value : '');
+    box.innerHTML = `<div style="font-size: 20px; line-height: 1;">${s.icon}</div><div style="margin-top: 2px;">${s.label}</div>${displayValue ? `<div style="font-weight: bold;">${displayValue}</div>` : ''}`;
+    grid.appendChild(box);
+  }
+  
+  if (cellsToShow === 0) {
+    grid.style.display = 'none';
+  } else {
+    grid.style.display = 'grid';
+  }
+}
     function autosave() {
       if (turn - lastAutosaveTurn >= 20) {
         saveGame(false);
@@ -688,7 +734,7 @@
           if (Math.abs(x2 - hx) > Math.abs(y2 - hy) && hx !== x2) hx += Math.sign(x2 - hx);
           else if (hy !== y2) hy += Math.sign(y2 - hy);
           if (tiles[hy]?.[hx] === '#') {
-            if (Math.random() > 0.3 && (tiles[hy-1]?.[hx] === '.' || tiles[hy+1]?.[hx] === '.' || tiles[hy][hx-1] === '.' || tiles[hy][hx+1] === '.')) {
+            if (Math.random() < 0.15 && (tiles[hy-1]?.[hx] === '.' || tiles[hy+1]?.[hx] === '.' || tiles[hy][hx-1] === '.' || tiles[hy][hx+1] === '.')) {
               tiles[hy][hx] = '+';
               features.push({ x: hx, y: hy, type: 'door', open: false, locked: Math.random() < 0.1, discovered: false });
             } else {
@@ -955,6 +1001,7 @@
       document.getElementById('hunger').textContent = getHungerStatus();
       updateInventoryDisplay();
       updateActivateButton();
+      updateStatusGrid();
       needsRedraw = true;
     }
 
@@ -1735,14 +1782,22 @@ function processTrapCadence(trap) {
   if ((trap.ap || 0) < AP_COSTS.THROW) return;
 
   let ammo = null;
-  if (trap.hasBoulder) ammo = { ...ENEMY_ITEMS.boulder };
-  else if (trap.hasDart) ammo = { ...ENEMY_ITEMS.dart };
+  let maxRange = 0;
+  if (trap.hasBoulder) { ammo = { ...ENEMY_ITEMS.boulder };
+    maxRange = 8;
+  } else if (trap.hasDart) { ammo = { ...ENEMY_ITEMS.dart };
+    maxRange = 12;
+}
   if (!ammo) return;
 
+// Check range first
+  const distance = Math.hypot(player.x - trap.x, player.y - trap.y);
+  if (distance > maxRange) return;
+  
   if (!hasLineOfSight(trap.x, trap.y, player.x, player.y)) return;
+  
   const { dx, dy } = pickCardinalDirection(trap.x, trap.y, player.x, player.y);
 
-  // Spend AP to fire
   if (!spendAP(trap, AP_COSTS.THROW, 'trap fire')) return;
 
   throwProjectile(trap, ammo, dx, dy, { allowDrop: false });
