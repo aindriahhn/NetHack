@@ -260,14 +260,15 @@
         <button class="control-btn" data-dir="s">↓</button>
         <button class="control-btn" data-dir="se">↘</button>
       </div>
-      <div id="action-btns">
-        <button id="look-btn" class="action-btn">🔍 Look Mode</button>
-        <button id="throw-mode-btn" class="action-btn">🎯 Throw Mode</button>
-        <button id="toggle-action" class="action-btn">Use/Drop Mode</button>
-        <button id="actions-btn" class="action-btn">🙏 Actions</button>
-        <button id="save-btn" class="action-btn">💾 Save</button>
-        <button id="load-btn" class="action-btn">📂 Load</button>
-      </div>
+    <div id="action-btns">
+  <button id="look-btn" class="action-btn">🔍 Look Mode</button>
+  <button id="throw-mode-btn" class="action-btn">🎯 Throw Mode</button>
+  <button id="activate-btn" class="action-btn">⬇️ Activate</button>
+  <button id="toggle-action" class="action-btn">Use/Drop Mode</button>
+  <button id="actions-btn" class="action-btn">🙏 Actions</button>
+  <button id="save-btn" class="action-btn">💾 Save</button>
+  <button id="load-btn" class="action-btn">📂 Load</button>
+</div>
     </div>
     <div id="inventory">
       <div>Inventory (Tap to Use/Drop/Throw):</div>
@@ -498,6 +499,16 @@
         log('Load failed.', 'damage');
       }
     }
+    function updateActivateButton() {
+  const btn = document.getElementById('activate-btn');
+  if (!btn) return;
+  
+  if (isStairsAt(player.x, player.y)) {
+    btn.textContent = '⬇️ Descend';
+  } else {
+    btn.textContent = '🔍 Search';
+  }
+}
 
     function autosave() {
       if (turn - lastAutosaveTurn >= 20) {
@@ -942,7 +953,9 @@
       if (player.hp <= player.maxHp * 0.2) statusText += ' (Low HP)';
       document.getElementById('status').textContent = statusText;
       document.getElementById('hunger').textContent = getHungerStatus();
-      updateInventoryDisplay(); needsRedraw = true;
+      updateInventoryDisplay();
+      updateActivateButton();
+      needsRedraw = true;
     }
 
     // ---- Identify ----
@@ -1200,6 +1213,13 @@ function spendAP(actor, cost, actionName) {
   currentActionContext = null;
   // Do not force-look OFF here; the button toggle should own that state.
   document.getElementById('throw-mode-btn').classList.remove('action-mode');
+  document.getElementById('activate-btn').addEventListener('click', () => {
+  if (isStairsAt(player.x, player.y)) {
+    descendStairs();
+  } else {
+    doSearch();
+  }
+});
   document.getElementById('look-btn').classList.remove('action-mode');
   needsRedraw = true;
 }
@@ -1460,10 +1480,10 @@ function isStairsAt(x, y) {
     function movePlayer(dx, dy) {
       if (currentActionContext) { executeActionWithDirection(dx, dy); return; }
       // Immediate descent if stairs (tile or item layer)
-      if (isStairsAt(player.x, player.y)) {
-        descendStairs();
-      return;
-}
+     // if (isStairsAt(player.x, player.y)) {
+     //   descendStairs();
+      //return;
+//}
       if (player.isLooking) { moveLookCursor(dx, dy); return; }
       if (player.paralyzedTurns > 0) { log('You are paralyzed!', 'damage'); processTurn(); return; }
       if (player.ap < AP_COSTS.MOVE) { log('Not enough AP to move!', 'damage'); return; }
