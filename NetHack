@@ -334,18 +334,26 @@
       </div>
       <button id="debug-toggle">Debug</button>
     </div>
-    <div id="controls-group">
-      <div id="controls">
-        <button class="control-btn" data-dir="nw">↖</button>
-        <button class="control-btn" data-dir="n">↑</button>
-        <button class="control-btn" data-dir="ne">↗</button>
-        <button class="control-btn" data-dir="w">←</button>
-        <button class="control-btn" data-dir="wait">•</button>
-        <button class="control-btn" data-dir="e">→</button>
-        <button class="control-btn" data-dir="sw">↙</button>
-        <button class="control-btn" data-dir="s">↓</button>
-        <button class="control-btn" data-dir="se">↘</button>
-      </div>
+<div id="controls-group">
+  <div style="display: flex; flex-direction: column; gap: 5px;">
+  <div id="controls">
+    <button class="control-btn" data-dir="nw">↖</button>
+    <button class="control-btn" data-dir="n">↑</button>
+    <button class="control-btn" data-dir="ne">↗</button>
+    <button class="control-btn" data-dir="w">←</button>
+    <button class="control-btn" data-dir="wait">•</button>
+    <button class="control-btn" data-dir="e">→</button>
+    <button class="control-btn" data-dir="sw">↙</button>
+    <button class="control-btn" data-dir="s">↓</button>
+    <button class="control-btn" data-dir="se">↘</button>
+  </div>
+  <div id="quick-actions" style="display: flex; flex-direction: column; gap: 3px;">
+    <button id="quick-attack" class="action-btn" style="font-size: 12px; padding: 6px;">⚔️ Attack</button>
+    <button id="quick-zap" class="action-btn" style="font-size: 12px; padding: 6px;">⚡ Zap</button>
+    <button id="quick-throw" class="action-btn" style="font-size: 12px; padding: 6px;">🎯 Throw</button>
+  </div>
+</div>
+  <div id="action-btns">
       <div id="action-btns">
         <button id="look-btn" class="action-btn">🔍 Look Mode</button>
         <button id="throw-mode-btn" class="action-btn">🎯 Throw Mode</button>
@@ -356,6 +364,8 @@
         <button id="load-btn" class="action-btn">📂 Load</button>
       </div>
     </div>
+    </div>
+    <div>
     <div id="status-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px; border: 2px solid #0f0; background: #001100; margin: 8px 0; border-radius: 4px;">
       <!-- Status boxes appear here -->
     </div>
@@ -1094,6 +1104,7 @@
       maxHp: 15,
       apRegen: 120,
       hitChance: 60,
+      canRechargeWands: true,
       startingInventory: [ {
         baseName: 'dagger',
         identified: true
@@ -1993,6 +2004,17 @@ updateStats();
 }
 
 // ---- Effects ----
+function rechargeWand(wand, chargesAdded) {
+if (!wand || wand.type !== 'wand') {
+log('That is not a wand.', 'damage');
+return false;
+}
+
+wand.charges += chargesAdded;
+log(`Your ${wand.name} glows with renewed power! (+${chargesAdded} charges)`, 'pickup');
+updateStats();
+return true;
+}
 function applyItemEffectToPlayer(item) {
 let consumed = false;
 
@@ -2727,7 +2749,6 @@ processTurn();
 },
 
 zap: (dx, dy) => {
-// 1) No wand?
 if (!currentActionContext?.item || currentActionContext.item.type !== 'wand') {
 log('No wand selected to zap!', 'damage');
 return;
@@ -2735,22 +2756,17 @@ return;
 
 const wand = currentActionContext.item;
 
-// 2) Wand already dead?
 if (wand.charges <= 0) {
 log(`Your ${wand.name} crumbles to dust.`, 'damage');
 const idx = player.inventory.indexOf(wand);
 if (idx > -1) player.inventory.splice(idx, 1);
-
-// ❗ Only one processTurn(), then stop here
 processTurn();
 return;
 }
 
-// 3) Spend AP and fire
 if (!safeSpendAP(AP_COSTS.ZAP, 'zap')) return;
 wand.charges--;
 
-// 4) Beam trace…
 let tx = player.x,
 ty = player.y,
 hitMonster = null;
@@ -2762,6 +2778,25 @@ hitMonster = monsters.find(m => m.x === tx && m.y === ty);
 if (hitMonster) break;
 }
 
+if (hitMonster) {
+if (wand.effect === 'strike') {
+const damage = rollDice(2, 6);
+hitMonster.hp -= damage;
+log(`Your wand strikes ${hitMonster.name} for ${damage} damage!`, 'damage');
+if (hitMonster.hp <= 0) handleEntityDeath(player, hitMonster);
+} else if (wand.effect === 'teleport') {
+teleportMonster(hitMonster);
+log(`${hitMonster.name} vanishes!`, 'pickup');
+}
+} else {
+log('The beam fizzles out harmlessly.', 'info');
+}
+
+identifyItem(wand);
+updateStats();
+processTurn();
+}
+}
 function doSearch() {
 if (!safeSpendAP(AP_COSTS.SEARCH, 'search')) return;
 
@@ -2823,8 +2858,7 @@ foundSomething = true;
 if (!foundSomething) log('You search the immediate area, finding nothing.', 'info');
 processTurn();
 }
-}
-};
+
 function executeActionWithDirection(dx, dy) {
 if (!currentActionContext) return;
 const {
@@ -3066,16 +3100,48 @@ action: 'kick'
 
 function pray() {
 if (!safeSpendAP(AP_COSTS.PRAY, 'pray')) return;
+
 const feature = dungeon.features.find(f => f.x === player.x && f.y === player.y && f.type === 'altar');
+
 if (feature) {
 log('You pray at the altar...', 'pickup');
+
+// Wizard-specific: offer wand recharging
+// Wizard-specific: wand recharging
+if (player.canRechargeWands) {
+const wands = player.inventory.filter(i => i.type === 'wand');
+const depletedWand = wands.find(i => i.charges === 0);
+const partialWand = wands.find(i => i.charges > 0 && i.charges < 5);
+
+if (depletedWand || partialWand) {
+const targetWand = depletedWand || partialWand;
+const apCost = 200;
+
+if (player.ap >= apCost) {
+player.ap -= apCost;
+const chargesAdded = rollDice(1, 3, 1);
+rechargeWand(targetWand, chargesAdded); // <-- Call the function
+processTurn();
+return;
+} else {
+log(`You need ${apCost} AP to recharge. (Current: ${player.ap})`, 'damage');
+processTurn();
+return;
+}
+}
+}
+// Normal prayer effects for all classes
 const roll = Math.random();
 if (roll < 0.3) {
-log('A divine light heals your wounds.', 'pickup'); player.hp = player.maxHp; updateStats();
+log('A divine light heals your wounds.', 'pickup');
+player.hp = player.maxHp;
+updateStats();
 } else if (roll < 0.6) {
 log('Your plea is answered with a gift!', 'pickup');
 spawnItems(1);
-const newItem = items[items.length-1]; newItem.x = player.x; newItem.y = player.y;
+const newItem = items[items.length - 1];
+newItem.x = player.x;
+newItem.y = player.y;
 log(`${newItem.name} appears.`, 'pickup');
 } else if (roll < 0.9) {
 log('The gods are angered! A monster appears.', 'damage');
@@ -3085,10 +3151,13 @@ const spawnType = MONSTER_TYPES[Math.floor(Math.random() * MONSTER_TYPES.length)
 monsters.push({
 ...pos, ...spawnType, maxHp: spawnType.hp, ap: 0, state: 'wandering'
 });
-} else log('Your prayer goes unanswered.', 'info');
+} else {
+log('Your prayer goes unanswered.', 'info');
+}
 } else {
 log('You pray, but nothing happens here.', 'info');
 }
+
 processTurn();
 }
 
@@ -3822,7 +3891,31 @@ case 'wait': waitAction(); return;
 movePlayer(dx, dy);
 });
 });
+document.getElementById('quick-attack').addEventListener('click', () => {
+  cancelActionModes();
+  log('Attack mode: Choose a direction to attack.', 'info');
+  // Attack mode is default movement behavior, so just cancel other modes
+});
 
+document.getElementById('quick-zap').addEventListener('click', () => {
+  const wand = player.inventory.find(i => i.type === 'wand' && i.charges > 0);
+  if (wand) {
+    cancelActionModes();
+    currentActionContext = { action: 'zap', item: wand };
+    log(`Ready to zap with ${wand.name} (${wand.charges} charges). Choose direction.`, 'info');
+    updateStats();
+  } else {
+    log('No charged wands in inventory!', 'damage');
+  }
+});
+
+document.getElementById('quick-throw').addEventListener('click', () => {
+  cancelActionModes();
+  currentActionContext = { action: 'throw', item: null };
+  document.getElementById('throw-mode-btn').classList.add('action-mode');
+  log('Throw mode: Select an item from inventory, then choose direction.', 'info');
+  updateStats();
+});
 document.getElementById('look-btn').addEventListener('click', (e) => {
 e.stopPropagation();
 // Cancel other modes, but don't touch isLooking
