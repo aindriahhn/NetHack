@@ -2,336 +2,483 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, user-scalable=no" name="viewport"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NetHack Roguelike (Mobile)</title>
-<style>
-    body {
-      margin: 0;
-      padding: 5px;
-      background: #000;
-      color: #0f0;
-      font-family: 'Courier New', monospace;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      box-sizing: border-box;
-    }
-    h1 {
-      color: #0f0;
-      border-bottom: 2px solid #0f0;
-      padding-bottom: 5px;
-      margin-bottom: 10px;
-      font-weight: normal;
-      font-size: 1.5rem;
-      text-align: center;
-    }
-    #game-container {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      width: 100%;
-      max-width: 640px;
-    }
-    canvas {
-      border: 2px solid #0f0;
-      background: #000;
-      image-rendering: pixelated;
-      width: 100%;
-      height: auto;
-      max-width: 100%;
-    }
-    #stats, #inventory, #log {
-      padding: 8px;
-      border: 2px solid #0f0;
-      background: #001100;
-      font-size: 10px;
-      line-height: 1.4;
-      border-radius: 4px;
-    }
-    #log {
-      max-height: 120px;
-      overflow-y: auto;
-    }
-    .log-entry {
-      margin: 2px 0;
-    }
-    .damage {
-      color: #f00;
-    }
-    .pickup {
-      color: #ff0;
-    }
-    .death {
-      color: #f0f;
-    }
-    .info {
-      color: #0ff;
-    }
-    .modal-btn:disabled {
-      background: #222;
-      border-color: #555;
-      color: #555;
-      cursor: not-allowed;
-    }
-
-    #inventory {
-      max-height: 140px;
-      overflow-y: auto;
-    }
-    #inventory-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      margin-top: 5px;
-    }
-    .inventory-btn {
-      background: #002200;
-      border: 2px solid #0f0;
-      color: #0f0;
-      font-size: 10px;
-      font-family: 'Courier New', monospace;
-      cursor: pointer;
-      padding: 4px 6px;
-      border-radius: 4px;
-      transition: all 0.1s;
-    }
-    .inventory-btn:active {
-      background: #003300;
-      border-color: #0ff;
-    }
-    .action-mode-selected {
-      background: #440 !important;
-      border-color: #ff0 !important;
-      color: #000 !important;
-    }
-    #controls-group {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 10px;
-      margin: 10px 0;
-    }
-    #controls {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(3, 1fr);
-      gap: 3px;
-    }
-    .control-btn {
-      background: #002200;
-      border: 2px solid #0f0;
-      color: #0f0;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      user-select: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.1s;
-      width: 50px;
-      height: 50px;
-      min-width: 40px;
-      min-height: 40px;
-      border-radius: 6px;
-    }
-    .control-btn[data-dir="wait"] {
-      background: #333;
-    }
-    .control-btn:active {
-      background: #003300;
-      border-color: #0ff;
-    }
-    #action-btns {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      align-items: stretch;
-      justify-content: flex-start;
-      height: 100%;
-    }
-    .action-btn {
-      background: #002200;
-      border: 2px solid #0f0;
-      color: #0f0;
-      font-size: 14px;
-      font-family: 'Courier New', monospace;
-      cursor: pointer;
-      padding: 8px 10px;
-      border-radius: 4px;
-      transition: all 0.2s;
-      min-width: 100px;
-      text-align: center;
-      font-weight: bold;
-    }
-    #toggle-action.drop-mode {
-      background: #400;
-      border-color: #f00;
-    }
-    #throw-mode-btn.action-mode,
-    #look-btn.action-mode {
-      background: #004400;
-      border-color: #0ff;
-    }
-    .action-btn:active {
-      background: #003300;
-      border-color: #0ff;
-    }
-
-    #monster-guide {
-      padding: 10px;
-      border: 2px solid #0f0;
-      background: #001100;
-      font-size: 12px;
-      margin-top: 10px;
-      width: 100%;
-      max-width: 640px;
-      box-sizing: border-box;
-      border-radius: 4px;
-    }
-    #monster-guide h2 {
-      margin: 0 0 10px 0;
-      text-align: center;
-      font-weight: normal;
-      font-size: 14px;
-    }
-    #monster-guide ul {
-      list-style-type: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
-    }
-    #monster-guide li {
-      background: #002200;
-      padding: 4px 8px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
+<style>body {
+  margin: 0;
+  padding: 5px;
+  background: #002000;
+  color: #0f0;
+  font-family: 'Courier New', monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding-top: 16vh;#002000
+}
+h1 {
+  color: #0f0;
+  border-bottom: 2px solid #0f0;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+  font-weight: normal;
+  font-size: 1.5rem;
+  text-align: center;
+  opacity: 0.5;
+}
+h1.fade-out {
+  opacity: 0;
+  transition: opacity 10s ease;
+}
+h1.hide {
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 10s ease;
+}
+#game-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 640px;
+}
+canvas {
+  border: 2px solid #0f0;
+  background: #002000;
+  image-rendering: pixelated;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+}
+#stats, #inventory, #log {
+  padding: 8px;
+  border: 2px solid #0f0;
+  background: #000100;
+  font-size: 10px;
+  line-height: 1.4;
+  border-radius: 4px;
+}
+.death {
+  color: #f0f;
+}
+.info {
+  color: #0ff;
+}
+.modal-btn:disabled {
+  background: #222;
+  border-color: #555;
+  color: #555;
+  cursor: not-allowed;
+}
+#inventory {
+  max-height: 140px;
+  overflow-y: auto;
+}
+#inventory-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.inventory-btn {
+  background: #002200;
+  border: 2px solid #0f0;
+  color: #0f0;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.1s;
+}
+.inventory-btn:active {
+  background: #003300;
+  border-color: #0ff;
+}
+.action-mode-selected {
+  background: #440 !important;
+  border-color: #ff0 !important;
+  color: #002000 !important;
+}
+#controls-group {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0;
+}
+#controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+}
+.control-btn {
+  background: #002200;
+  border: 2px solid #0f0;
+  color: #0f0;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+  width: 50px;
+  height: 50px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 6px;
+}
+.control-btn[data-dir="wait"] {
+  background: #333;
+}
+.control-btn:active {
+  background: #003300;
+  border-color: #0ff;
+}
+#action-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+  justify-content: flex-start;
+  height: 100%;
+}
+.action-btn {
+  background: #002200;
+  border: 2px solid #0f0;
+  color: #0f0;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  min-width: 100px;
+  text-align: center;
+  font-weight: bold;
+}
+#toggle-action.drop-mode {
+  background: #400;
+  border-color: #f00;
+}
+#throw-mode-btn.action-mode,
+#look-btn.action-mode {
+  background: #004400;
+  border-color: #0ff;
+}
+.action-btn:active {
+  background: #003300;
+  border-color: #0ff;
+}
+#monster-guide {
+  padding: 10px;
+  border: 2px solid #0f0;
+  background: #000100;
+  font-size: 12px;
+  margin-top: 10px;
+  width: 100%;
+  max-width: 640px;
+  box-sizing: border-box;
+  border-radius: 4px;
+}
+#monster-guide h2 {
+  margin: 0 0 10px 0;
+  text-align: center;
+  font-weight: normal;
+  font-size: 14px;
+}
+#monster-guide ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+#monster-guide li {
+  background: #002200;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 @media (max-width: 450px) {
-      #controls {
-        grid-template-columns: repeat(3, 1fr);
-        width: 150px;
-        height: 150px;
-      }
-      .control-btn {
-        width: 100%;
-        height: 100%;
-      }
-      #action-btns {
-        flex-grow: 1;
-      }
-    }
-
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.9);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-    .modal.show {
-      display: flex;
-    }
-    .modal-content {
-      background: #001100;
-      border: 3px solid #0f0;
-      padding: 20px;
-      text-align: center;
-      max-width: 90%;
-      width: 340px;
-      border-radius: 8px;
-    }
-    .modal-content h2 {
-      color: #0f0;
-      margin: 0 0 15px 0;
-      font-size: 24px;
-    }
-    .modal-stats {
-      margin: 15px 0;
-      color: #0f0;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    .modal-btn {
-      background: #002200;
-      border: 2px solid #0f0;
-      color: #0f0;
-      padding: 10px 20px;
-      font-size: 16px;
-      font-family: 'Courier New', monospace;
-      cursor: pointer;
-      border-radius: 4px;
-      margin: 5px;
-    }
-    .modal-btn:active {
-      background: #003300;
-    }
-    #restart-modal .modal-content {
-      border-color: #f00;
-    }
-    #restart-modal h2 {
-      color: #f00;
-    }
-    .role-desc {
-      font-size: 12px;
-      margin-bottom: 15px;
-      color: #ccc;
-    }
+  #controls {
+    grid-template-columns: repeat(3, 1fr);
+    width: 150px;
+    height: 150px;
+  }
+  .control-btn {
+    width: 100%;
+    height: 100%;
+  }
+  #action-btns {
+    flex-grow: 1;
+  }
+}
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal.show {
+  display: flex;
+}
+.modal-content {
+  background: #000100;
+  border: 3px solid #0f0;
+  padding: 20px;
+  text-align: center;
+  max-width: 90%;
+  width: 340px;
+  border-radius: 8px;
+}
+.modal-content h2 {
+  color: #0f0;
+  margin: 0 0 15px 0;
+  font-size: 24px;
+}
+.modal-stats {
+  margin: 15px 0;
+  color: #0f0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.modal-btn {
+  background: #002200;
+  border: 2px solid #0f0;
+  color: #0f0;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 5px;
+}
+.modal-btn:active {
+  background: #003300;
+}
+#restart-modal .modal-content {
+  border-color: #f00;
+}
+#restart-modal h2 {
+  color: #f00;
+}
+.role-desc {
+  font-size: 12px;
+  margin-bottom: 15px;
+  color: #ccc;
+}
 #dead-runs-modal .modal-content {
     max-height: 85vh;
     overflow-y: auto;
     box-sizing: border-box;
 }
-
-    #debug-overlay {
-      position: fixed;
-      bottom: 8px;
-      right: 8px;
-      background: rgba(0, 17, 0, 0.85);
-      border: 1px solid #0f0;
-      border-radius: 4px;
-      padding: 6px 8px;
-      font-size: 10px;
-      color: #0f0;
-      display: none;
-      z-index: 1100;
-    }
-    #debug-toggle {
-      background: #002200;
-      border: 2px solid #0f0;
-      color: #0f0;
-      font-size: 12px;
-      padding: 6px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-top: 6px;
-      font-family: 'Courier New', monospace;
-      // --- Safety helper: bindSafe ---
-function bindSafe(id, event, handler) {
-  try {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener(event, handler);
-    }
-  } catch (e) {
-    console.warn('bindSafe error:', e);
-  }
+#debug-overlay {
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 17, 0, 0.85);
+  border: 1px solid #0f0;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 10px;
+  color: #0f0;
+  display: none;
+  z-index: 1100;
 }
-    }
-  </style>
+#debug-toggle {
+  background: #002200;
+  border: 2px solid #0f0;
+  color: #0f0;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 6px;
+  font-family: 'Courier New', monospace;
+}
+#log {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  box-sizing: border-box;
+  height: 16vh; 
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.85);
+  border-bottom: 2px solid #00ff00;
+  color: #00ff00;
+  padding: 6px;
+  z-index: 200;
+  transition: height 0.3s ease, opacity 0.3s ease, background 0.3s ease;
+  backdrop-filter: blur(2px);
+}
+#log .log-entry {
+  opacity: 0.6;
+  transition: opacity 0.3s ease, color 0.3s ease;
+  opacity: 1.5;
+  margin: 2px 0;
+}
+#log .log-entry.latest {
+  opacity: 1;
+  color: #0f0;
+  font-weight: bold;
+  animation: logGlow 10s ease-out;
+}
+#log.expanded {
+  height: 60vh;
+  opacity: 0.3;
+  background: rgba(0, 0, 0, 0.95);
+}
+#/* === Floating console overlay === */
+#log {
+  position: fixed;
+  top: 0;
+  left: 0;
+  transform: translateX(-50%);
+  width: 92%;
+  max-width: 720px;
+  box-sizing: border-box;
+  height: 12vh; /* default contracted height */
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.75);
+  border-top: 2px solid #00ff00;
+  color: #00ff00;
+  padding: 4px;
+  z-index: 200;
+  touch-action: manipulation;
+  opacity 0.2s;
+  height: 12vh; /* contracted */
+  transition: height 0.3s ease;
+}
+
+#log:not(.expanded) {
+  transition: height 0.3s ease, opacity 0.7s ease, background 0.15s ease;
+}
+#log.expanded {
+  height: 60vh; /* expanded */
+}
+#log.dragging {
+  opacity: 0.85;
+  border-color: #0f0;
+}
+
+#log.floating {
+  opacity: 0.3;
+  background: rgba(0, 0, 0, 0.4);
+}
+#log:hover,
+#log:active,
+#log.interacting {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.9);
+}
+#log.dragging {
+  opacity: 0.3;
+  border-color: #0f0;
+}
+#log .damage {
+  color: #f00;
+}
+#log .pickup {
+  color: #ff0;
+}
+#log .death {
+  color: #f0f;
+}
+#log .info {
+  color: #0ff;
+}
+
+/* 4. Keyframes (Definitions for Animations) */
+
+@keyframes logGlow {
+  0%   { text-shadow: 0 0 0px #0f0; }
+  30%  { text-shadow: 0 0 25px #0f0; } 
+  100% { text-shadow: 0 0 0px #0f0; }
+}
+@-webkit-keyframes scanFlicker {
+  0%, 100% { opacity: 0.68; }
+  25%, 75% { opacity: 0.68; }
+  50% { opacity: 0.70; }
+}
+@keyframes scanFlicker {
+  0%, 100% { opacity: 0.68; }
+  25%, 75% { opacity: 0.68; }
+  50% { opacity: 0.70; }
+}
+@-webkit-keyframes scanSweep {
+  0% { -webkit-transform: translateY(-3px); transform: translateY(-3px); opacity: 0; } 
+  10% { opacity: 0.35; } 
+  50% { opacity: 0.30; }
+  90% { opacity: 0.35; } 
+  100% { -webkit-transform: translateY(100vh); transform: translateY(100vh); opacity: 0; }
+}
+@keyframes scanSweep {
+  0% { transform: translateY(-3px); opacity: 0; } 
+  10% { opacity: 0.35; } 
+  50% { opacity: 0.30; }
+  90% { opacity: 0.35; } 
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* 5. CRT Overlay Styles (Uses Keyframes defined above, requires class="crt" on <body>) */
+
+Body.crt::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,0.5) 0, rgba(0,0,0,0.15) 1px, transparent 2px),
+    radial-gradient(circle at 50% 50%, rgba(0,255,0,0.1), transparent 70%); 
+  mix-blend-mode: overlay;
+  z-index: 5000;
+  display: block; 
+  will-change: opacity;
+  
+  -webkit-animation: scanFlicker 12s ease-in-out infinite;
+  animation: scanFlicker 12s ease-in-out infinite;
+}
+
+Body.crt::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  pointer-events: none;
+  
+  height: 5px; 
+  
+  background: rgba(0, 225, 0, 1); 
+  mix-blend-mode: overlay;
+  z-index: 11; 
+  
+  display: block;
+  will-change: transform;
+  
+  -webkit-animation: scanSweep 6s linear infinite;
+  animation: scanSweep 6s linear infinite;
+}
+</style>
 </head>
-<body>
+<body class="crt">
 <h1>NetHack Style Roguelike (Mobile)</h1>
 <div id="game-container">
 <div id="log">
@@ -352,9 +499,7 @@ function bindSafe(id, event, handler) {
 </div>
 <div>
         Status: <span id="status">Normal</span> | Hunger: <span id="hunger">Satiated</span>
-</div>
-<button id="debug-toggle">Debug</button>
-</div>
+
 <div id="controls-group">
 <div style="display: flex; flex-direction: column; gap: 5px;">
 <div id="controls">
@@ -384,10 +529,13 @@ function bindSafe(id, event, handler) {
 <button class="action-btn" id="actions-btn">🙏 Actions</button>
 <button class="action-btn" id="save-btn">💾 Save</button>
 <button class="action-btn" id="load-btn">📂 Load</button>
+
+<button id="debug-toggle">Debug</button>
 </div>
 </div>
-<div>
-<div id="status-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px; border: 2px solid #0f0; background: #001100; margin: 8px 0; border-radius: 4px;">
+</div>
+
+<div id="status-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px; border: 2px solid #0f0; background: #000100; margin: 8px 0; border-radius: 4px;">
 </div>
 <div id="inventory">
 <div>
@@ -435,7 +583,7 @@ function bindSafe(id, event, handler) {
         font-size: 14px;
         width: 100%;
         border: 2px solid #0f0;
-        background: #001100;
+        background: #000100;
         color: #0f0;
         border-radius: 4px;
         box-sizing: border-box;
@@ -508,7 +656,7 @@ function bindSafe(id, event, handler) {
 <h2>You Died</h2>
 <div class="modal-stats">
 <div>
-            Final Level: <span id="final-level">1</span>
+             Final Level: <span id="final-level">1</span>
 </div>
 <div>
             Gold: <span id="final-gold">0</span>
@@ -1500,21 +1648,29 @@ function bindSafe(id, event, handler) {
           }]
         }
       };
+ function log(message, type = 'info') {
+  const logDiv = document.getElementById('log');
+  if (!logDiv) return;
 
-    function log(message, type = 'info') {
-      const logDiv = document.getElementById('log');
-      if (!logDiv) return;
-      const entry = document.createElement('div');
-      entry.className = 'log-entry ' + type;
-      entry.textContent = `Turn ${turn}: ${message}`;
-      logDiv.appendChild(entry);
-      while (logDiv.children.length > 120) {
-        logDiv.removeChild(logDiv.firstChild);
-      }
-      logDiv.scrollTop = logDiv.scrollHeight;
-    }
+  // Remove highlight from previous latest entry
+  const last = logDiv.querySelector('.log-entry.latest');
+  if (last) last.classList.remove('latest');
 
-    function saveGame(manual = false) {
+  // Create new log entry
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type} latest`;
+  entry.textContent = `Turn ${turn}: ${message}`;
+  logDiv.appendChild(entry);
+
+  // Keep log size reasonable
+  while (logDiv.children.length > 120) {
+    logDiv.removeChild(logDiv.firstChild);
+  }
+
+  // Auto-scroll to bottom
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+  function saveGame(manual = false) {
       try {
         const state = {
           player: {
@@ -1545,8 +1701,7 @@ function bindSafe(id, event, handler) {
         log('Save failed.', 'damage');
       }
     }
-
-    function loadGame() {
+  function loadGame() {
       try {
         const data = localStorage.getItem(OFFLINE_SAVE_KEY);
         if (!data) {
@@ -1600,7 +1755,6 @@ function bindSafe(id, event, handler) {
       btn.textContent = '🔍 Search';
     }
   }
-
   function handleLookThrowAction() {
     const throwableItems = player.inventory.filter(i =>
       i.type === 'potion' || i.type === 'weapon' || i.type === 'scroll'
@@ -1613,7 +1767,6 @@ function bindSafe(id, event, handler) {
 
     showThrowSelectionUI(throwableItems);
   }
-
   function updateStatusGrid() {
     const grid = document.getElementById('status-grid');
     if (!grid) return;
@@ -1663,7 +1816,6 @@ function bindSafe(id, event, handler) {
       lastAutosaveTurn = turn;
     }
   }
-
   function createPlayer(role) {
     const baseRole = PLAYER_ROLES[role];
     player = {
@@ -1773,7 +1925,6 @@ function bindSafe(id, event, handler) {
     updateScore(amount);
     checkLevelUp();
   }
-
   function checkLevelUp() {
     let leveledUp = false;
     while (player.level < LEVEL_XP_REQUIREMENTS.length && player.xp >= LEVEL_XP_REQUIREMENTS[player.level]) {
@@ -1792,7 +1943,6 @@ function bindSafe(id, event, handler) {
     }
     if (leveledUp) updateStats();
   }
-
   function computeFOV(x, y, radius) {
     visible = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
     espVisible = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
@@ -1817,7 +1967,6 @@ function bindSafe(id, event, handler) {
 
     needsRedraw = true;
   }
-
   function getVisionRadius() {
     if (!player || !player.inventory) return 8;
 
@@ -1900,26 +2049,22 @@ function bindSafe(id, event, handler) {
       case 7: return [cx + dx, cy + dy];
     }
   }
-
   function getCameraOffset(focusX, focusY) {
     let offsetX = Math.max(0, Math.min(focusX - Math.floor(VIEW_WIDTH / 2), WIDTH - VIEW_WIDTH));
     let offsetY = Math.max(0, Math.min(focusY - Math.floor(VIEW_HEIGHT / 2), HEIGHT - VIEW_HEIGHT));
     return {offsetX, offsetY};
   }
-
   function isWalkable(x, y) {
     if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return false;
     const tile = dungeon.tiles[y][x];
     return tile === '.' || tile === '\'' || tile === '>' || tile === '_' || tile === '{' || tile === 'E' || tile === '≈';
   }
-
   function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [array[i], array[j]] = [array[j], array[i]];
     }
   }
-
   function randomizeItemNames() {
     itemVisualToTypeMap = {};
     const typesToRandomize = ['potion', 'scroll', 'wand', 'tool'];
@@ -2042,7 +2187,6 @@ function bindSafe(id, event, handler) {
     dungeon.engravings = engravings;
     return {tiles, width: w, height: h, rooms, features, engravings};
   }
-
   function generateTestLevel() {
     const testFeatures = [{
       type: 'fountain',
@@ -2106,7 +2250,6 @@ function bindSafe(id, event, handler) {
     computeFOV(player.x, player.y, getVisionRadius());
     needsRedraw = true;
   }
-
   function generateVault(tiles, rooms) {
     let w = tiles[0].length, h = tiles.length;
     let rw = Math.floor(Math.random() * 4) + 4;
@@ -2129,7 +2272,6 @@ function bindSafe(id, event, handler) {
       log("You feel a sense of hidden treasure on this level.", "info");
     }
   }
-
   function findWalkable(room = null) {
     for (let i = 0; i < 200; i++) {
       let x, y;
@@ -2146,7 +2288,6 @@ function bindSafe(id, event, handler) {
     }
     return {x: Math.min(WIDTH - 2, player?.x + 1 || 1), y: player?.y || 1};
   }
-
   function findWalkableAdjacent(px, py) {
     const adjacencies = [];
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -2156,7 +2297,6 @@ function bindSafe(id, event, handler) {
     }
     return adjacencies.length > 0 ? adjacencies[Math.floor(Math.random() * adjacencies.length)] : null;
   }
-
   function spawnMonsters(count) {
     let spawnPool = MONSTER_TYPES.filter(type => type.depth <= dungeonLevel + 1);
 
@@ -2177,14 +2317,12 @@ function bindSafe(id, event, handler) {
       monsters.push({...pos, ...type, maxHp: type.hp, ap: 0, state: 'wandering', weapon: null});
     }
   }
-
   function generateItemStatus() {
     const roll = Math.random();
     if (roll < 0.20) return 'Cursed';
     if (roll < 0.80) return 'Normal';
     return 'Blessed';
   }
-
   function spawnItems(count) {
     const validItems = ITEM_TYPES.filter(i => i.depth <= dungeonLevel);
     const stairsType = validItems.find(i => i.isStairs);
@@ -2236,7 +2374,6 @@ function bindSafe(id, event, handler) {
       items.push(item);
     }
   }
-
   function spawnTraps(count) {
     traps = [];
     for (let i = 0; i < count; i++) {
@@ -2247,8 +2384,8 @@ function bindSafe(id, event, handler) {
       traps.push({...pos, ...type});
     }
   }
-
   function initGame(restart = false, role) {
+    document.querySelector('h1').classList.add('hide');
     if (restart) {
       createPlayer(role);
       dungeonLevel = 1; kills = 0;
@@ -2307,7 +2444,6 @@ function bindSafe(id, event, handler) {
     needsRedraw = true;
     saveGame(false);
   }
-
   function getPlayerDR() {
     let dr = 1;
     if (player.armor) {
@@ -2332,19 +2468,16 @@ function bindSafe(id, event, handler) {
     }
     return dr;
   }
-
   function getPlayerDodgeChance() {
     let dodge = player.baseDodgeChance;
     if (player.speedTurns > 0) dodge += 10;
     return Math.min(90, Math.max(0, dodge));
   }
-
   function getDodgeChance(target) {
     let dodge = target.baseDodgeChance ?? Math.floor((target.defense || 0) / 2);
     if (target.armor) dodge += Math.floor((target.armor.defense || 0) / 2);
     return Math.min(90, Math.max(0, dodge));
   }
-
   function getHungerStatus() {
     if (player.hunger > 1500) return 'Satiated';
     if (player.hunger > 500) return 'Normal';
@@ -2352,7 +2485,6 @@ function bindSafe(id, event, handler) {
     if (player.hunger > 0) return 'Weak';
     return 'Fainting';
   }
-
   function getWeaponDisplayName(item) {
     if (!item || item.type !== 'weapon') return item.visualName || item.name;
 
@@ -2360,7 +2492,6 @@ function bindSafe(id, event, handler) {
     const bonus = item.mod?.bonus ? ` +${item.mod.bonus}` : '';
     return `${prefix ? prefix + ' ' : ''}${item.visualName || item.name}${bonus}`;
   }
-
   function getAppearanceOrIdentity(item) {
     if (item.identified && item.baseName) {
       return item.baseName;
@@ -2370,7 +2501,6 @@ function bindSafe(id, event, handler) {
     }
     return item.name || 'unknown';
   }
-
   function getItemDisplayName(item) {
     let name;
 
@@ -2403,7 +2533,6 @@ function bindSafe(id, event, handler) {
 
     return name;
   }
-
   function updateInventoryDisplay() {
     const list = document.getElementById('inventory-list');
     if (!list) return;
@@ -2418,7 +2547,6 @@ function bindSafe(id, event, handler) {
       list.appendChild(button);
     });
   }
-
   function updateStats() {
     const rageBtn = document.getElementById('rage-btn');
     if (rageBtn) {
@@ -2462,11 +2590,9 @@ function bindSafe(id, event, handler) {
     updateStatusGrid();
     needsRedraw = true;
   }
-
   function updateScore(amount) {
     player.score += amount;
   }
-
   function identifyItem(item) {
     if (!item.identified) {
       const trueBaseName = itemVisualToTypeMap[item.visualName] || item.baseName || item.name;
@@ -2484,7 +2610,6 @@ function bindSafe(id, event, handler) {
       updateStats();
     }
   }
-
   function rechargeWand(wand, chargesAdded) {
     if (!wand || wand.type !== 'wand') {
       log('That is not a wand.', 'damage');
@@ -2496,7 +2621,6 @@ function bindSafe(id, event, handler) {
     updateStats();
     return true;
   }
-
   function applyItemEffectToPlayer(item) {
     let consumed = false;
 
@@ -2956,7 +3080,6 @@ function bindSafe(id, event, handler) {
     updateStats();
     needsRedraw = true;
   }
-
   function safeSpendAP(cost, actionName = 'Action') {
     const costPerTurn = player.maxAp;
     if (cost <= costPerTurn) {
@@ -3011,14 +3134,12 @@ function bindSafe(id, event, handler) {
     }
   });
 }
-
   function spendAP(actor, cost, actionName) {
     const ap = actor.ap || 0;
     if (ap < cost) return false;
     actor.ap = ap - cost;
     return true;
   }
-
   function applyStatusEffects() {
     player.hpRegenCooldown--;
     if (player.hpRegenCooldown <= 0 && player.hp < player.maxHp && player.hunger > 500) {
@@ -3143,7 +3264,6 @@ function bindSafe(id, event, handler) {
       }
     });
   }
-
   function calculateDamage(attacker, target) {
     let damage = 1;
     let weapon = attacker.weapon;
@@ -3182,7 +3302,6 @@ function bindSafe(id, event, handler) {
     }
     return Math.max(1, damage);
   }
-
   function attack(attacker, target) {
     if (attacker.ap < AP_COSTS.ATTACK) {
       if (attacker === player) log('Not enough AP for attack!', 'damage');
@@ -3228,7 +3347,6 @@ function bindSafe(id, event, handler) {
       log(`${attacker.name} misses ${target.name}.`, 'info');
     }
   }
-
   function handleEntityDeath(attacker, target) {
     if (target === player) {
       log('You have died!', 'death');
@@ -3259,7 +3377,6 @@ function bindSafe(id, event, handler) {
     if (monsters.includes(target)) monsters = monsters.filter(m => m !== target);
     if (pets.includes(target)) pets = pets.filter(p => p !== target);
   }
-
   function takeDamage(damage, type = 'physical') {
     let effectiveDamage = Math.max(0, damage);
 
@@ -3367,14 +3484,27 @@ function bindSafe(id, event, handler) {
 
     monster.hp -= effectiveDamage;
   }
-
   function cancelActionModes() {
     currentActionContext = null;
     document.getElementById('throw-mode-btn').classList.remove('action-mode');
     document.getElementById('look-btn').classList.remove('action-mode');
     needsRedraw = true;
   }
-
+  function lineOfSight(x1, y1, x2, y2) {
+    let dx = Math.abs(x2 - x1); let dy = -Math.abs(y2 - y1);
+    let sx = x1 < x2 ? 1 : -1; let sy = y1 < y2 ? 1 : -1;
+    let err = dx + dy;
+    while (true) {
+      if (x1 === x2 && y1 === y2) return true;
+      if (dungeon.tiles[y1][x1] === '#' || dungeon.tiles[y1][x1] === '+') return false;
+      let e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy; x1 += sx;
+      }
+      if (e2 <= dx) {
+        err += dx; y1 += sy;
+      }
+    }}
   function hasLineOfSight(ax, ay, bx, by) {
     let x = ax, y = ay;
     const dx = Math.sign(bx - ax), dy = Math.sign(by - ay);
@@ -3385,13 +3515,11 @@ function bindSafe(id, event, handler) {
     }
     return true;
   }
-
   function pickCardinalDirection(ax, ay, bx, by) {
     const dx = bx - ax, dy = by - ay;
     if (Math.abs(dx) >= Math.abs(dy)) return {dx: Math.sign(dx), dy: 0};
     return {dx: 0, dy: Math.sign(dy)};
   }
-
   const actionHandlers = {
     disarm: (dx, dy) => {
       const targetX = player.x + dx;
@@ -3762,7 +3890,6 @@ function bindSafe(id, event, handler) {
       processTurn();
     }
   };
-
   function applyThrownItemEffects(item, x, y) {
     if (!item.effect) return;
 
@@ -3820,7 +3947,6 @@ function bindSafe(id, event, handler) {
       applyThrownEffectToEntity(item, hitPet);
     }
   }
-
   function executeActionWithDirection(dx, dy) {
     if (!currentActionContext) return;
 
@@ -3835,7 +3961,6 @@ function bindSafe(id, event, handler) {
       cancelActionModes();
     }
   }
-
   function handleInventoryClick(event, item) {
     if (currentActionContext) {
       currentActionContext.item = item;
@@ -3846,7 +3971,6 @@ function bindSafe(id, event, handler) {
       else dropItem(item);
     }
   }
-
   function waitAction() {
     if (player.paralyzedTurns > 0) {
       log('You are paralyzed!', 'damage');
@@ -3861,7 +3985,6 @@ function bindSafe(id, event, handler) {
     log('You wait a moment.', 'info');
     processTurn();
   }
-
   function doSearch() {
     if (!safeSpendAP(AP_COSTS.SEARCH, 'search')) return;
 
@@ -4114,7 +4237,6 @@ function bindSafe(id, event, handler) {
       statusDiv.textContent = `Steal chance: ${successChance}% (Level ${player.level} Rogue)`;
     }
   }
-
   function calculatePrice(item, depth) {
     const priceRatio = item.basePrice !== undefined ? item.basePrice : 1.0;
 
@@ -4131,7 +4253,6 @@ function bindSafe(id, event, handler) {
 
     return Math.max(1, shopPrice);
   }
-
   function addItemToInventory(item) {
     if (item.type === 'ammo') {
       const existingAmmo = player.inventory.find(i =>
@@ -4149,7 +4270,9 @@ function bindSafe(id, event, handler) {
       log('Your inventory is full!', 'damage');
     }
   }
-
+  function hasQuiverEquipped() {
+    return player.accessory && player.accessory.baseName === 'quiver';
+  }
   function autoRefillQuiver() {
     const quiver = player.accessory && player.accessory.baseName === 'quiver'
     ? player.accessory : null;
@@ -4187,7 +4310,6 @@ function bindSafe(id, event, handler) {
       }
     }
   }
-
   function calculateSellPrice(item, shopDepth) {
     const buyPrice = calculatePrice(item, shopDepth);
     let sellPrice = Math.floor(buyPrice * 0.4);
@@ -4203,7 +4325,6 @@ function bindSafe(id, event, handler) {
 
     return Math.max(1, sellPrice);
   }
-
   function getItemDescription(item) {
     const descriptions = {
       'weapon': `Melee weapon, ${item.damage} damage`,
@@ -4218,7 +4339,6 @@ function bindSafe(id, event, handler) {
     };
     return descriptions[item.type] || 'Mysterious item';
   }
-
   function buyItem(item, price, index) {
     if (player.gold < price) {
       log('You cannot afford that!', 'damage');
@@ -4239,7 +4359,6 @@ function bindSafe(id, event, handler) {
     updateStats();
     updateShopDisplay();
   }
-
   function sellItem(item, price) {
     if (item.equipped && item.status === 'Cursed') {
       log('You cannot remove the cursed item!', 'damage');
@@ -4264,7 +4383,6 @@ function bindSafe(id, event, handler) {
     updateStats();
     updateShopDisplay();
   }
-
   function spawnGuardsAtPlayer() {
     const count = 2 + Math.floor(Math.random() * 2);
 
@@ -4286,7 +4404,6 @@ function bindSafe(id, event, handler) {
       });
     }
   }
-
   function attemptSteal(item, successChance, index) {
     const actualSuccessChance = Math.min(75,
       40 + (player.level * 5) + (player.disarmBonus || 0) - (currentShop.shopkeeperAngry ? 10 : 0)
@@ -4307,7 +4424,6 @@ function bindSafe(id, event, handler) {
       processTurn();
     }
   }
-
   function getAvailableAmmo(ammoType) {
     let ammo = player.inventory.find(i =>
       i.type === 'ammo' &&
@@ -4334,11 +4450,6 @@ function bindSafe(id, event, handler) {
 
     return null;
   }
-
-  function hasQuiverEquipped() {
-    return player.accessory && player.accessory.baseName === 'quiver';
-  }
-
   function isStairsAt(x, y) {
     const tileIsStairs = dungeon.tiles?.[y]?.[x] === '>';
     const itemIsStairs = items.some(i => i.x === x && i.y === y && i.isStairs);
@@ -4348,7 +4459,6 @@ function bindSafe(id, event, handler) {
     }
     return false;
   }
-
   function movePlayer(dx, dy) {
     if (player.isLooking) {
       moveLookCursor(dx, dy);
@@ -4467,7 +4577,6 @@ function bindSafe(id, event, handler) {
     }
     processTurn();
   }
-
   function moveLookCursor(dx, dy) {
     player.lookCursor.x = Math.max(0, Math.min(WIDTH - 1, player.lookCursor.x + dx));
     player.lookCursor.y = Math.max(0, Math.min(HEIGHT - 1, player.lookCursor.y + dy));
@@ -4512,12 +4621,10 @@ function bindSafe(id, event, handler) {
     log(`You see ${targetName}${targetHP}.`, 'info');
     needsRedraw = true;
   }
-
   function kick() {
     log('Kick in which direction?', 'info');
     currentActionContext = {action: 'kick'};
   }
-
   function pray() {
     if (!safeSpendAP(AP_COSTS.PRAY, 'pray')) return;
 
@@ -4573,7 +4680,6 @@ function bindSafe(id, event, handler) {
 
     processTurn();
   }
-
   function engrave() {
     if (!safeSpendAP(AP_COSTS.ENGRAVE, 'engrave')) return;
     const existingEngraving = dungeon.engravings.find(e => e.x === player.x && e.y === player.y);
@@ -4586,13 +4692,11 @@ function bindSafe(id, event, handler) {
     }
     processTurn();
   }
-
   function descendStairs() {
     dungeonLevel++;
     log(`You descend to depth ${dungeonLevel}.`, 'pickup');
     initGame(false);
   }
-
   function checkTrap(x, y) {
     const trap = traps.find(t => t.x === x && t.y === y);
     if (trap) {
@@ -4615,7 +4719,6 @@ function bindSafe(id, event, handler) {
     }
     return false;
   }
-
   function teleportPlayer() {
     let newPos = findWalkable();
     const sameLocation = (newPos.x === player.x && newPos.y === player.y);
@@ -4633,7 +4736,6 @@ function bindSafe(id, event, handler) {
     updateStats();
     needsRedraw = true;
   }
-
   function teleportMonster(monster) {
     let newPos = findWalkable();
     const sameLocation = (newPos.x === monster.x && newPos.y === monster.y);
@@ -4647,24 +4749,6 @@ function bindSafe(id, event, handler) {
     }
     needsRedraw = true;
   }
-
-  function lineOfSight(x1, y1, x2, y2) {
-    let dx = Math.abs(x2 - x1); let dy = -Math.abs(y2 - y1);
-    let sx = x1 < x2 ? 1 : -1; let sy = y1 < y2 ? 1 : -1;
-    let err = dx + dy;
-    while (true) {
-      if (x1 === x2 && y1 === y2) return true;
-      if (dungeon.tiles[y1][x1] === '#' || dungeon.tiles[y1][x1] === '+') return false;
-      let e2 = 2 * err;
-      if (e2 >= dy) {
-        err += dy; x1 += sx;
-      }
-      if (e2 <= dx) {
-        err += dx; y1 += sy;
-      }
-    }
-  }
-
   function throwProjectile(source, item, dx, dy, options = {}) {
     const projectilePath = traceLine(source.x, source.y, dx, dy, 12);
 
@@ -4703,7 +4787,6 @@ function bindSafe(id, event, handler) {
       items.push({...item, x: finalPos.x, y: finalPos.y});
     }
   }
-
   function processTrapCadence(trap) {
     if (trap.apRegen == null) return;
 
@@ -4731,7 +4814,6 @@ function bindSafe(id, event, handler) {
 
     throwProjectile(trap, ammo, dx, dy, {allowDrop: false});
   }
-
   function findPath(startX, startY, goalX, goalY) {
     if (!isWalkable(goalX, goalY)) return null;
 
@@ -4813,7 +4895,6 @@ function bindSafe(id, event, handler) {
     }
     return null;
   }
-
   function petAction(pet) {
     if (pet.ap < pet.apRegen) return;
 
@@ -4867,7 +4948,6 @@ function bindSafe(id, event, handler) {
       pet.ap -= AP_COSTS.MOVE;
     }
   }
-
   function monsterAction(monster) {
    if (monster.ap < AP_COSTS.ATTACK) return;
 
@@ -5008,7 +5088,6 @@ console.log(`${monster.name} at (${monster.x},${monster.y}): state=${monster.sta
       }
     }
   }
-
   function processFireSpread() {
     const existingFires = dungeon.features.filter(f => f.type === 'fire');
     if (existingFires.length === 0) return;
@@ -5084,7 +5163,6 @@ console.log(`${monster.name} at (${monster.x},${monster.y}): state=${monster.sta
       needsRedraw = true;
     }
   }
-
   function processTurn() {
     turn++;
 
@@ -5123,7 +5201,6 @@ console.log(`${monster.name} at (${monster.x},${monster.y}): state=${monster.sta
     if (player.hp <= 0) showRestartModal();
     needsRedraw = true;
   }
-
   function highlightEspTile(viewX, viewY, monster) {
     const x = viewX * TILE_SIZE;
     const y = viewY * TILE_SIZE;
@@ -5141,7 +5218,6 @@ console.log(`${monster.name} at (${monster.x},${monster.y}): state=${monster.sta
 
     ctx.restore();
   }
-
   function gameLoop() {
     requestAnimationFrame(gameLoop);
     if (!needsRedraw) return;
@@ -5150,7 +5226,7 @@ console.log(`${monster.name} at (${monster.x},${monster.y}): state=${monster.sta
     let focusY = player.isLooking ? player.lookCursor.y : player.y;
     const {offsetX, offsetY} = getCameraOffset(focusX, focusY);
 
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#002000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.textAlign = 'start';
     ctx.textBaseline = 'bottom';
@@ -5268,7 +5344,6 @@ console.log(`${monster.name} at (${monster.x},${monster.y}): state=${monster.sta
     needsRedraw = true;
     updateDebugOverlay();
   }
-
   function updateDebugOverlay() {
     const el = document.getElementById('debug-overlay');
     if (!el || el.style.display === 'none') return;
@@ -5284,32 +5359,27 @@ console.log(`${monster.name} at (${monster.x},${monster.y}): state=${monster.sta
 
   let DEV_MODE = false;
   let fingerCountTimeout = null;
-
   function toggleDevMode(forceState) {
     DEV_MODE = (typeof forceState === 'boolean') ? forceState : !DEV_MODE;
     DEV_MODE ? showDevOverlay() : hideDevOverlay();
   }
-
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key.toLowerCase() === 'd') {
       e.preventDefault();
       toggleDevMode();
     }
   });
-
   document.addEventListener('dblclick', (e) => {
     if (e.clientX < 100 && e.clientY < 100) {
       toggleDevMode();
     }
   });
-
   document.addEventListener('touchstart', (e) => {
     if (e.touches.length >= 3) {
       clearTimeout(fingerCountTimeout);
       fingerCountTimeout = setTimeout(toggleDevMode, 50);
     }
   }, {passive: true});
-
   function showDevOverlay() {
     let overlay = document.getElementById('dev-overlay');
     if (!overlay) {
@@ -6065,17 +6135,27 @@ function resizeCanvasToFit() {
 
 window.addEventListener('resize', resizeCanvasToFit);
 resizeCanvasToFit();
-  window.addEventListener('load', () => {
-    resizeCanvas();
-    showStartScreen();
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').then(() => {
-        log('Offline ready.', 'pickup');
-      }).catch(() => {
-        log('Offline setup failed.', 'damage');
-      });
-    }
-  });
+ window.addEventListener('load', () => {
+  resizeCanvas();
+  showStartScreen();
+
+  // Fade out title after short delay
+  const title = document.querySelector('h1');
+  if (title) {
+    setTimeout(() => {
+      title.classList.add('fade-out');
+    }, 10000); // ⏱️ fade after 3 seconds
+  }
+
+  // Service worker registration
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(() => {
+      log('Offline ready.', 'pickup');
+    }).catch(() => {
+      log('Offline setup failed.', 'damage');
+    });
+  }
+});
 
 
 // --- MIGRATED UI HANDLERS FROM SonnetRoguelike.html ---
@@ -10697,7 +10777,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let focusY = player.isLooking ? player.lookCursor.y : player.y;
         const {offsetX, offsetY} = getCameraOffset(focusX, focusY);
     
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = '#002000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.textAlign = 'start';
         ctx.textBaseline = 'bottom';
@@ -11585,9 +11665,7 @@ document.addEventListener('DOMContentLoaded', () => {
   })();
 
 });
-// --- END MIGRATED UI HANDLERS ---
-</script>
-</div><script>
+
 
 // Appended Experiment-only definitions
 function processGasSpread() {
@@ -11664,41 +11742,60 @@ function processGasSpread() {
 
   if (newGas.length > 0 || expiredGas.length > 0) needsRedraw = true;
 }
-// === Make console draggable on mobile/desktop ===
-(function enableDraggableConsole() {
-  const logEl = document.getElementById('log-entry');
-  if (!logEl) return;
+// === Expand/Contract & Floating Transparency for Log Console ===
+// === Expand / Collapse & Floating Transparency for Log Console ===
+(function setupFloatingLog() {
+  const log = document.getElementById('log');
+  if (!log) return;
 
-  let startY = 0, startBottom = 0, dragging = false;
+  let expanded = false;
+  let lastTap = 0;
+  let scrollTimeout;
 
-  const startDrag = (e) => {
-    dragging = true;
-    logEl.classList.add('dragging');
-    startY = e.touches ? e.touches[0].clientY : e.clientY;
-    startBottom = parseInt(window.getComputedStyle(logEl).bottom) || 0;
-  };
+  // --- Expand / collapse on click ---
+  log.addEventListener('click', () => {
+    const now = Date.now();
+    if (now - lastTap < 300) return; // ignore double-taps
+    expanded = !expanded;
+    log.classList.toggle('expanded', expanded);
+    lastTap = now;
+  });
 
-  const duringDrag = (e) => {
-    if (!dragging) return;
-    const currentY = e.touches ? e.touches[0].clientY : e.clientY;
-    const deltaY = startY - currentY;
-    let newBottom = startBottom + deltaY;
-    newBottom = Math.max(0, Math.min(window.innerHeight * 0.6, newBottom)); // limit movement
-    logEl.style.bottom = `${newBottom}px`;
-  };
+  // --- Optional double-click toggle too ---
+  log.addEventListener('dblclick', () => {
+    expanded = !expanded;
+    log.classList.toggle('expanded', expanded);
+  });
 
-  const endDrag = () => {
-    if (!dragging) return;
-    dragging = false;
-    logEl.classList.remove('dragging');
-  };
+  // --- Fade transparency when scrolling down ---
+  // --- Fade transparency when scrolling, then wake up after pause ---
+window.addEventListener('scroll', () => {
+  clearTimeout(scrollTimeout);
 
-  logEl.addEventListener('mousedown', startDrag);
-  window.addEventListener('mousemove', duringDrag);
-  window.addEventListener('mouseup', endDrag);
-  logEl.addEventListener('touchstart', startDrag);
-  window.addEventListener('touchmove', duringDrag);
-  window.addEventListener('touchend', endDrag);
+  if (window.scrollY > 10) {
+    log.classList.add('floating');
+  } else {
+    log.classList.remove('floating');
+  }
+
+  // Temporarily make it fully visible while scrolling
+  log.classList.add('interacting');
+
+  // When scrolling stops for 1 second, fade back to transparent
+  scrollTimeout = setTimeout(() => {
+    log.classList.remove('interacting');
+  }, 1000);
+});
+ if (typeof window.log === 'function') {
+    const origLog = window.log;
+    window.log = function(message, type) {
+      try { expandLog(3); } catch (e) {}
+      return origLog.apply(this, arguments);
+    };
+  }
+
 })();
-</script></body>
+</script>
+
+</body>
 </html>
