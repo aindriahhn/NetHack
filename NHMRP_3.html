@@ -69,6 +69,18 @@
       line-height: 1.4;
       border-radius: 4px;
     }
+    #stats {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  max-height: 1000px; /* enough to fit everything */
+  opacity: 1;
+}
+
+#stats.collapsed {
+  max-height: 8px; /* only show the top line */
+  opacity: 0.8;
+  cursor: pointer;
+}
     .death {
       color: #f0f;
     }
@@ -557,6 +569,11 @@
       </div>
       <div>
         Status: <span id="status">Normal</span> | Hunger: <span id="hunger">Satiated</span>
+        </div>
+        </div>
+
+        <div id="uiSegment">
+          
         <div id="controls-group">
           <div style="display: flex; flex-direction: column; gap: 5px;">
             <div id="controls">
@@ -570,12 +587,13 @@
               <button class="control-btn" data-dir="s">↓</button>
               <button class="control-btn" data-dir="se">↘</button>
             </div>
+            <div style="background:#020; padding:4px; text-align:center; font-weight:bold;">ACTIONS</div>
             <div id="quick-actions" style="display: flex; flex-direction: column; gap: 3px;">
+              <button class="action-btn" data-action="use-feature" style="font-size: 12px; padding: 6px;">⬇️ Activate</button>
               <button class="action-btn" data-action="look-throw" style="font-size: 12px; padding: 6px;">🎯 Look-Throw</button>
               <button class="action-btn" data-action="look-zap" style="font-size: 12px; padding: 6px;">⚡️ Look-Zap</button>
               <button class="action-btn" data-action="look-shoot" style="font-size: 12px; padding: 6px;">🏹 Look-Shoot</button>
               <button class="action-btn" data-action="apply" style="font-size: 12px; padding: 6px;">🔧 Use Tool</button>
-              <button class="action-btn" data-action="use-feature" style="font-size: 12px; padding: 6px;">⬇️ Activate</button>
               <button class="action-btn" id="zoom-toggle-btn">🔍 Zoom: 1x</button>
             </div>
           </div>
@@ -592,14 +610,20 @@
           </div>
         </div>
       </div>
+              <div id="inventory">
+  <div id="inventory-header" style="background:#020; padding:4px; text-align:center; font-weight:bold; cursor:pointer;">
+    Inventory ▼
+  </div>
+  <div id="inventory-body">
+    <div>
+      Inventory (Tap to Use/Drop/Throw):
+    </div>
+    <div id="inventory-list"></div>
+  </div>
+</div>
       <div id="status-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px; border: 2px solid #0f0; background: #000100; margin: 8px 0; border-radius: 4px;">
       </div>
-      <div id="inventory">
-        <div>
-          Inventory (Tap to Use/Drop/Throw):
-        </div>
-        <div id="inventory-list"></div>
-      </div>
+    
     </div>
     <div id="monster-guide">
       <h2>Monster Guide</h2>
@@ -616,6 +640,7 @@
         <li>(D) Dragon <span style="background: #f00; width: 10px; height: 10px; display: inline-block;"></span></li>
         <li>(L) Lich (ranged) <span style="background: #a0f; width: 10px; height: 10px; display: inline-block;"></span></li>
       </ul>
+    </div>
     </div>
     <div class="modal" id="start-screen-modal">
       <div class="modal-content">
@@ -751,7 +776,7 @@ function getTileSize() {
 }
 
     const AP_COSTS = {
-      MOVE: 100,
+      MOVE: 0,
       ATTACK: 100,
       WAIT: 0,
       SEARCH: 100,
@@ -951,7 +976,10 @@ function getTileSize() {
       defense: 0,
       hitChance: 70,
       depth: 1,
-      apRegen: 120
+      apRegen: 100,
+      ap: 100,
+      maxAP: 100,
+      exhaustedTurns: 0
     },
       {
         glyph: 'b',
@@ -963,7 +991,10 @@ function getTileSize() {
         defense: 5,
         hitChance: 75,
         depth: 1,
-        apRegen: 150,
+        apRegen: 100,
+        maxAP: 100,
+        ap: 100,
+        exhaustedTurns: 0,
         behavior: 'erratic'
       },
       {
@@ -977,6 +1008,9 @@ function getTileSize() {
         hitChance: 80,
         depth: 1,
         apRegen: 100,
+        maxAP: 100,
+        ap: 100,
+        exhaustedTurns: 0,
         behavior: 'equipper'
       },
       {
@@ -990,6 +1024,9 @@ function getTileSize() {
         hitChance: 75,
         depth: 1,
         apRegen: 110,
+        maxAP: 110,
+        ap: 110,
+        exhaustedTurns: 0,
         behavior: 'coward'
       },
       {
@@ -1002,7 +1039,10 @@ function getTileSize() {
         defense: 10,
         hitChance: 85,
         depth: 2,
-        apRegen: 90
+        apRegen: 100,
+        maxAP: 100,
+        ap: 100,
+        exhaustedTurns: 0
       },
       {
         glyph: 's',
@@ -1014,7 +1054,10 @@ function getTileSize() {
         defense: 12,
         hitChance: 88,
         depth: 2,
-        apRegen: 80,
+        apRegen: 50,
+        maxAP: 100,
+        ap: 0,
+        exhaustedTurns: 0,
         resists: 'piercing'
       },
       {
@@ -1027,7 +1070,10 @@ function getTileSize() {
         defense: 5,
         hitChance: 80,
         depth: 2,
-        apRegen: 70,
+        apRegen: 100,
+        maxAP: 100,
+        ap: 0,
+        exhaustedTurns: 0,
         behavior: 'divider'
       },
       {
@@ -1040,7 +1086,10 @@ function getTileSize() {
         defense: 15,
         hitChance: 90,
         depth: 3,
-        apRegen: 85
+        apRegen: 50,
+        maxAP: 100,
+        exhaustedTurns: 0,
+        ap: 0
       },
       {
         glyph: 'O',
@@ -1052,7 +1101,10 @@ function getTileSize() {
         defense: 18,
         hitChance: 92,
         depth: 4,
-        apRegen: 75
+        apRegen: 50,
+        maxAP: 100,
+        ap: 0,
+        exhaustedTurns: 0
       },
       {
         glyph: 'D',
@@ -1064,7 +1116,10 @@ function getTileSize() {
         defense: 20,
         hitChance: 95,
         depth: 5,
-        apRegen: 110,
+        apRegen: 200,
+        maxAP: 200,
+        ap: 0,
+        exhaustedTurns: 0,
         intrinsics: {
           fireResist: true,
           coldResist: true,
@@ -1081,7 +1136,10 @@ function getTileSize() {
         defense: 25,
         hitChance: 98,
         depth: 6,
-        apRegen: 120,
+        apRegen: 150,
+        maxAP: 300,
+        ap: 0,
+        exhaustedTurns: 0,
         behavior: 'ranged',
         intrinsics: {
           poisonResist: true,
@@ -1611,7 +1669,7 @@ function getTileSize() {
         hasDart: true,
         ap: 0,
         apRegen: 50,
-        maxAp: 100
+        maxAP: 100
       },
       {
         glyph: '^',
@@ -1620,7 +1678,7 @@ function getTileSize() {
         hasBoulder: true,
         ap: 0,
         apRegen: 10,
-        maxAp: 100
+        maxAP: 100
       }];
 
     const DEFAULT_INTRINSICS = {
@@ -1970,7 +2028,7 @@ function createPlayer(role) {
       y: 0
     },
     ap: 100,
-    maxAp: 100,
+    maxAP: 100,
     apRegen: 100,
     hunger: 1000,
     maxHunger: 2000,
@@ -2084,8 +2142,8 @@ function checkLevelUp() {
     player.maxHp += hpGain;
     player.hp = player.maxHp;
 
-    player.maxAp += 10;
-    player.ap = player.maxAp;
+    player.maxAP += 10;
+    player.ap = player.maxAP;
     player.hitChance += 1;
 
     log(`You reached level ${player.level}! Max HP increased by ${hpGain}.`, 'pickup');
@@ -2660,7 +2718,7 @@ player.lookCursor = {
 x: player.x,
 y: player.y
 };
-player.hp = player.maxHp; player.ap = player.maxAp; player.poisonTurns = 0;
+player.hp = player.maxHp; player.ap = player.maxAP; player.poisonTurns = 0;
 player.strengthTurns = 0; player.confusionTurns = 0; player.speedTurns = 0; player.paralyzedTurns = 0;
 visible = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
 explored = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(false));
@@ -2801,7 +2859,7 @@ document.getElementById('hp').textContent = `${player.hp}/${player.maxHp}`;
 document.getElementById('level').textContent = player.level;
 document.getElementById('xp').textContent = player.xp;
 document.getElementById('depth').textContent = dungeonLevel;
-document.getElementById('ap').textContent = `${player.ap}/${player.maxAp}`;
+document.getElementById('ap').textContent = `${player.ap}/${player.maxAP}`;
 document.getElementById('dr').textContent = getPlayerDR();
 document.getElementById('dodge').textContent = `${getPlayerDodgeChance()}%`;
 document.getElementById('gold').textContent = player.gold;
@@ -3040,7 +3098,7 @@ return false;
 }
 }
 function useFountain() {
-if (!safeSpendAP(50, 'drink from fountain')) return false;
+if (!safeSpendAP(50, 'drink from fountain', false)) return;
 
 const fountain = dungeon.features.find(f =>
 f.x === player.x &&
@@ -3055,7 +3113,7 @@ log('The water is refreshing!', 'pickup');
 player.hp = Math.min(player.maxHp, player.hp + 5);
 } else if (roll < 0.30) {
 log('You feel more energetic!', 'pickup');
-player.ap = player.maxAp;
+player.ap = player.maxAP;
 } else if (roll < 0.40) {
 log('The water tastes strange... you feel confused!', 'damage');
 player.confusionTurns += 5;
@@ -3337,41 +3395,57 @@ updateStats();
 needsRedraw = true;
 }
 
-function safeSpendAP(cost, actionName = 'Action', allowDebt = false) {
-let effectiveRegenRate = player.apRegen || 100;
-if (player.exhaustedTurns > 0) {
-effectiveRegenRate = Math.floor(effectiveRegenRate * 0.5);
-}
+function safeSpendAP(arg1, arg2, arg3, arg4) {
+    let entity, cost, actionName, allowDebt;
 
-// Simple case: can afford it now
-if (player.ap >= cost) {
-player.ap -= cost;
-return true;
-}
+    // Detects if the first argument is an entity object (new call) or the cost (old call)
+    if (typeof arg1 === 'object' && arg1 !== null && arg1.ap !== undefined) {
+        entity = arg1;
+        cost = arg2;
+        actionName = arg3 || 'Action';
+        allowDebt = arg4 !== undefined ? arg4 : true;
+    } else {
+        // Defaults to global 'player' for backwards compatibility
+        entity = player; 
+        cost = arg1;
+        actionName = arg2 || 'Action';
+        allowDebt = arg3 !== undefined ? arg3 : true;
+    }
 
-// For single-turn actions, must have enough AP
-if (cost <= effectiveRegenRate && !allowDebt) {
-log(`Insufficient AP for ${actionName}. Requires ${cost} AP.`, 'damage');
-return false;
-}
+    let effectiveRegenRate = entity.apRegen || 100;
+    
+    // Correct exhaustion check (replaces the old buggy logic)
+    if (entity.exhaustedTurns > 0) {
+        effectiveRegenRate = Math.floor(effectiveRegenRate * 0.5);
+    }
 
-// For multi-turn actions OR debt-allowed actions
-// Calculate how much AP debt we'll have
-let remainingCost = cost - player.ap;
-let turnsOfWait = Math.ceil(remainingCost / effectiveRegenRate);
+    if (entity.ap >= cost) {
+        entity.ap -= cost;
+        return true;
+    }
 
-player.ap -= cost; // Deduct full cost (may go negative)
-player.paralyzedTurns += turnsOfWait;
+    if (cost <= effectiveRegenRate && !allowDebt) {
+        if (entity.isPlayer) { // Only log if it's the player
+            log(`Insufficient AP for ${actionName}. Requires ${cost} AP.`, 'damage');
+        }
+        return false;
+    }
 
-if (turnsOfWait > 0) {
-log(`You used a great deal of effort to ${actionName}. You are stunned for ${turnsOfWait} turn(s).`, 'damage');
-}
+    let remainingCost = cost - entity.ap;
+    let turnsOfWait = Math.ceil(remainingCost / effectiveRegenRate);
 
-return true;
+    entity.ap -= cost;
+    entity.paralyzedTurns += turnsOfWait;
+
+    if (turnsOfWait > 0 && entity.isPlayer) { // Only log stun if it's the player
+        log(`You used a great deal of effort to ${actionName}. You are stunned for ${turnsOfWait} turn(s).`, 'damage');
+    }
+
+    return true;
 }
 
 function regenerateAP() {
-if (player.ap < player.maxAp) {
+if (player.ap < player.maxAP) {
 let regenAmount = player.apRegen || 100;
 
 if (player.ring && player.ring.equipped && player.ring.effect?.apRegenBonus) {
@@ -3383,23 +3457,23 @@ if (player.exhaustedTurns > 0) {
 regenAmount = Math.floor(regenAmount * 0.5);
 }
 
-player.ap = Math.min(player.ap + regenAmount, player.maxAp);
+player.ap = Math.min(player.ap + regenAmount, player.maxAP);
 }
 
 monsters.forEach(m => {
-const maxAp = m.apRegen * 2;
-m.ap = Math.min(m.ap + m.apRegen, maxAp);
+const maxAP = m.apRegen * 2;
+m.ap = Math.min(m.ap + m.apRegen, maxAP);
 });
 
 pets.forEach(p => {
-const maxAp = p.apRegen * 2;
-p.ap = Math.min(p.ap + p.apRegen, maxAp);
+const maxAP = p.apRegen * 2;
+p.ap = Math.min(p.ap + p.apRegen, maxAP);
 });
 
 traps.forEach(t => {
 if (t.apRegen != null) {
-const maxAp = t.maxAp || 100;
-t.ap = Math.min((t.ap || 0) + t.apRegen, maxAp);
+const maxAP = t.maxAP || 100;
+t.ap = Math.min((t.ap || 0) + t.apRegen, maxAP);
 }
 });
 }
@@ -3577,7 +3651,7 @@ return Math.max(1, damage);
 function attack(attacker, target) {
 if (attacker.ap < AP_COSTS.ATTACK) {
 if (attacker === player) log('Not enough AP for attack!', 'damage');
-safeSpendAP(AP_COSTS.attack, 'attack', true);
+safeSpendAP(AP_COSTS.attack, 'attack', false);
 return;
 }
 attacker.ap -= AP_COSTS.ATTACK;
@@ -3619,8 +3693,10 @@ updateStats();
 } else {
 log(`${attacker.name} misses ${target.name}.`, 'info');
 }
+if (attacker === player) {
+processTurn();
 }
-
+}
 function handleEntityDeath(attacker, target) {
 if (target === player) {
 log('You have died!', 'death');
@@ -4007,7 +4083,7 @@ log('No item selected to throw!', 'damage');
 return;
 }
 const item = currentActionContext.item;
-if (!safeSpendAP(AP_COSTS.THROW, 'throw')) return;
+if (!safeSpendAP(AP_COSTS.THROW, 'throw', true)) return;
 
 let tx = player.x;
 let ty = player.y;
@@ -4097,7 +4173,7 @@ processTurn();
 return;
 }
 
-if (!safeSpendAP(AP_COSTS.ZAP, 'zap')) return;
+if (!safeSpendAP(AP_COSTS.ZAP, 'zap', true)) return;
 wand.charges--;
 
 const beamPath = traceLine(player.x, player.y, dx, dy, 12);
@@ -4164,7 +4240,7 @@ return;
 ammoSource = ammoItem;
 }
 
-if (!safeSpendAP(AP_COSTS.SHOOT, 'shoot')) return;
+if (!safeSpendAP(AP_COSTS.SHOOT, 'shoot', false)) return;
 
 if (ammoSource === 'quiver') {
 player.quiver[quiverKey]--;
@@ -4314,9 +4390,9 @@ log('You are paralyzed!', 'damage');
 processTurn();
 return;
 }
-
+else {
 log('You wait a moment.', 'info');
-processTurn();
+processTurn();}
 }
 function doSearch() {
 if (!safeSpendAP(AP_COSTS.SEARCH, 'search')) return;
@@ -5325,7 +5401,7 @@ dx,
 dy
 } = pickCardinalDirection(trap.x, trap.y, player.x, player.y);
 
-if (!spendAP(trap, AP_COSTS.THROW, 'trap fire')) return;
+if (!(trap, AP_COSTS.THROW, 'trap fire')) return;
 
 throwProjectile(trap, ammo, dx, dy, {
 allowDrop: false
@@ -5749,6 +5825,7 @@ needsRedraw = true;
 
 function processTurn() {
 turn++;
+regenerateAP(player);
 if (player.autoRange) {
 tryAutoRangedAttack();
 }
@@ -5959,7 +6036,7 @@ el.innerHTML = [
 `Monsters: ${monsters.length}`,
 `Items: ${items.length}`,
 `Traps: ${traps.length}`,
-`Player: (${player.x},${player.y}) HP ${player.hp}/${player.maxHp} AP ${player.ap}/${player.maxAp}`
+`Player: (${player.x},${player.y}) HP ${player.hp}/${player.maxHp} AP ${player.ap}/${player.maxAP}`
 ].join('<br/>');
 }
 
@@ -6305,7 +6382,7 @@ hidden: false
 
 if (newTrap.apRegen != null) {
 newTrap.ap = 0;
-newTrap.maxAp = newTrap.maxAp || 100;
+newTrap.maxAP = newTrap.maxAP || 100;
 }
 traps.push(newTrap);
 log(`Dev: spawned ${newTrap.name} at (${pos.x},${pos.y}).`, 'info');
@@ -7292,7 +7369,25 @@ setTimeout(() => title.classList.add('fade-out'), 1000);
 // Step 2: shrink and vanish after fade completes
 setTimeout(() => title.classList.add('hide'), 11000);
 });
+const stats = document.getElementById('stats');
+let statsCollapsed = false;
 
+stats.addEventListener('click', (e) => {
+  // Don’t collapse when clicking buttons
+  if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+
+  statsCollapsed = !statsCollapsed;
+  stats.classList.toggle('collapsed', statsCollapsed);
+});
+const invHeader = document.getElementById('inventory-header');
+const invBody = document.getElementById('inventory-body');
+let invCollapsed = false;
+
+invHeader.addEventListener('click', () => {
+  invCollapsed = !invCollapsed;
+  invBody.style.display = invCollapsed ? 'none' : 'block';
+  invHeader.textContent = invCollapsed ? 'Inventory ▲' : 'Inventory ▼';
+});
 </script>
 </body>
-</html>
+  </html>
