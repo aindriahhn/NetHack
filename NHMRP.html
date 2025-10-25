@@ -6393,12 +6393,6 @@ y: newY
 // Traps
 checkTrap(player.x, player.y);
 
-// Stairs
-if (targetTile === '>') {
-descendStairs();
-return;
-}
-
 // Items
 const itemsHere = items.filter(i => i.x === player.x && i.y === player.y);
 if (itemsHere.length > 0) {
