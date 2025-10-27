@@ -728,7 +728,7 @@ animation: scanSweep 6s linear infinite;
 <div class="modal" id="actions-modal">
   <div class="modal-content">
     <h2>Actions</h2>
-      
+    <button class="modal-btn" data-action="spellbook">📖 Spellbook</button>
     <button class="modal-btn" data-action="pray">🙏 Pray (100 AP)</button>
     <button class="modal-btn" data-action="kick">🦶 Kick (120 AP)</button>
     <button class="modal-btn" data-action="disarm">🔧 Disarm Trap (150 AP)</button>
@@ -786,8 +786,28 @@ animation: scanSweep 6s linear infinite;
   </div>
 </div>
 <div id="debug-overlay"></div>
-
 </div>
+<div class="modal" id="spellbook-modal">
+  <div class="modal-content" style="max-width: 500px;">
+    <h2 style="color: #0af;">📖 Spellbook</h2>
+    <div id="spell-list" style="display: flex; flex-direction: column; gap: 8px; margin: 15px 0;"></div>
+    <button class="modal-btn" id="close-spellbook">Close</button>
+  </div>
+</div>
+<div class="modal" id="enchant-shop-modal">
+  <div class="modal-content" style="max-width: 500px;">
+    <h2 style="color: #0f0;">🔮 Enchanter's Workshop</h2>
+    <div style="color: #ff0; text-align: center; margin: 10px 0;">
+      Your Gold: <span id="enchant-gold">0</span>
+    </div>
+    <div style="color: #888; font-size: 11px; text-align: center; margin-bottom: 15px;">
+      Select equipment to enhance
+    </div>
+    <div id="enchant-equipment-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+    <button class="modal-btn" id="close-enchant-shop">Leave</button>
+  </div>
+</div>
+
 <script>
 const canvas = document.getElementById("nethack");
 const ctx = canvas.getContext("2d");
@@ -2246,6 +2266,173 @@ telepathyRadius: 100
 basePrice: 5
 }];
 
+const ENCHANTMENT_TYPES = {
+  // Weapon enchantments
+  sharpness: {
+    name: 'Sharpness',
+    type: 'weapon',
+    damageBonus: 2,
+    cost: 100,
+    description: '+2 damage'
+  },
+  speed: {
+    name: 'Speed',
+    type: 'weapon',
+    apReduction: 20,
+    cost: 150,
+    description: '-20 AP cost to attack'
+  },
+  vampiric: {
+    name: 'Vampiric',
+    type: 'weapon',
+    lifesteal: 0.25,
+    cost: 200,
+    description: 'Heal 25% of damage dealt'
+  },
+  
+  // Armor enchantments
+  fortification: {
+    name: 'Fortification',
+    type: 'armor',
+    drBonus: 3,
+    cost: 100,
+    description: '+3 DR'
+  },
+  reflection: {
+    name: 'Reflection',
+    type: 'armor',
+    reflectChance: 0.15,
+    cost: 150,
+    description: '15% chance to reflect projectiles'
+  },
+  regeneration: {
+    name: 'Regeneration',
+    type: 'armor',
+    regenBonus: 2,
+    cost: 200,
+    description: '+2 HP regen per turn'
+  }
+};
+// Upgrade system using formulas
+
+const UPGRADE_BASE_COST = 50;
+const UPGRADE_COST_MULTIPLIER = 2;
+const UPGRADE_BONUS_PER_LEVEL = 0.2;
+const MAX_UPGRADE_LEVEL = 10;
+
+function getUpgradeCost(currentLevel) {
+  return UPGRADE_BASE_COST * Math.pow(UPGRADE_COST_MULTIPLIER, currentLevel);
+}
+
+function getUpgradeMultiplier(newLevel) {
+  return 1.0 + (UPGRADE_BONUS_PER_LEVEL * newLevel);
+}
+
+const SPELL_TYPES = {
+  // Wizard spells
+  magicMissile: {
+    name: 'Magic Missile',
+    cost: 30,
+    damage: [2, 8],
+    range: 8,
+    class: 'Wizard',
+    description: 'Fire magical bolts that never miss (30 AP)'
+  },
+  fireball: {
+    name: 'Fireball',
+    cost: 60,
+    damage: [3, 6],
+    radius: 2,
+    range: 6,
+    class: 'Wizard',
+    description: 'Explosive fire damage in area (60 AP)'
+  },
+  slow: {
+    name: 'Slow',
+    cost: 40,
+    duration: 8,
+    range: 6,
+    class: 'Wizard',
+    description: 'Reduce enemy AP regen by 50% (40 AP)'
+  },
+  identify: {
+    name: 'Identify',
+    cost: 20,
+    class: 'Wizard',
+    description: 'Identify all items in inventory (20 AP)'
+  },
+  
+  // Barbarian abilities
+  whirlwind: {
+    name: 'Whirlwind',
+    cost: 100,
+    radius: 1,
+    class: 'Barbarian',
+    description: 'Attack all adjacent enemies (100 AP)'
+  },
+  warcry: {
+    name: 'War Cry',
+    cost: 70,
+    duration: 10,
+    radius: 5,
+    class: 'Barbarian',
+    description: 'Frighten nearby enemies (70 AP)'
+  },
+  
+  // Rogue abilities
+  backstab: {
+    name: 'Backstab',
+    cost: 80,
+    damageMultiplier: 3.0,
+    class: 'Rogue',
+    description: 'Massive damage from stealth (80 AP)'
+  },
+  poisonWeapon: {
+    name: 'Poison Weapon',
+    cost: 50,
+    duration: 5,
+    class: 'Rogue',
+    description: 'Your attacks poison enemies (50 AP)'
+  },
+  
+  // Archer abilities
+  multishot: {
+    name: 'Multishot',
+    cost: 120,
+    arrows: 3,
+    class: 'Archer',
+    description: 'Fire 3 arrows at once (120 AP)'
+  },
+  piercingShot: {
+    name: 'Piercing Shot',
+    cost: 80,
+    class: 'Archer',
+    description: 'Arrow passes through enemies (80 AP)'
+  }
+};
+
+function initializeSpells(player) {
+  player.spells = [];
+  player.spellPower = 1.0;
+  
+  switch (player.role) {
+    case 'Wizard':
+      player.spells = ['magicMissile', 'identify'];
+      player.maxAP = 150;
+      break;
+    case 'Barbarian':
+      player.spells = ['whirlwind'];
+      break;
+    case 'Rogue':
+      player.spells = ['backstab'];
+      break;
+    case 'Archer':
+      player.spells = ['multishot'];
+      break;
+  }
+}
+
+
 function maybeGenerateMod(depth) {
 const roll = Math.random();
 if (roll < 0.6) return null;
@@ -2500,6 +2687,15 @@ const FEATURE_TYPES = [
         depth: 1,
         requiresInventory: true,
         shopkeeperAngry: false
+    },
+    {
+        type: 'enchanter',
+        glyph: '✦',
+        color: '#0af',
+        spawnChance: 0.15,
+        minRooms: 4,
+        unique: true,
+        depth: 2
     },
     {
         type: 'door',
@@ -2865,106 +3061,98 @@ lastAutosaveTurn = turn;
 }
 
 function createPlayer(role) {
-const baseRole = PLAYER_ROLES[role];
-player = {
-x: 0,
-y: 0,
-glyph: '@',
-color: '#fff',
-name: 'You',
-role: role,
-level: 1,
-xp: 0,
-...baseRole,
-gold: 0,
-score: 0,
-inventory: [],
-inventoryMaxItems: 26,
-autoRange: false,
-telepathy: false,
-telepathyTurns: 0,
-telepathyRadius: 0,
-poisonTurns: 0,
-strengthTurns: 0,
-confusionTurns: 0,
-speedTurns: 0,
-paralyzedTurns: 0,
-baseDodgeChance: 5,
-isLooking: false,
+  const baseRole = PLAYER_ROLES[role];
+  player = {
+    x: 0,
+    y: 0,
+    glyph: '@',
+    color: '#fff',
+    name: 'You',
+    role: role,
+    level: 1,
+    xp: 0,
+    ...baseRole,
+    gold: 0,
+    score: 0,
+    inventory: [],
+    inventoryMaxItems: 26,
+    autoRange: false,
+    telepathy: false,
+    telepathyTurns: 0,
+    telepathyRadius: 0,
+    poisonTurns: 0,
+    strengthTurns: 0,
+    confusionTurns: 0,
+    speedTurns: 0,
+    paralyzedTurns: 0,
+    baseDodgeChance: 5,
+    isLooking: false,
+    lookCursor: { x: 0, y: 0 },
+    ap: baseRole.maxAP,
+    hunger: 1000,
+    maxHunger: 2000,
+    weapon: null,
+    armor: null,
+    hpRegen: 0,
+    hpRegenCooldown: 0,
+    rageTurns: 0,
+    exhaustedTurns: 0,
+    accessory: null,
+    quiver: { arrows: 0, bolts: 0, capacity: 0 },
+    rangedWeapon: null,
+    ring: null,
+    amulet: null,
+    hasUsedRevive: false,
+    spells: [],
+    spellPower: 1.0,
+    poisonedWeaponTurns: 0
+  };
 
-lookCursor: {
-x: 0,
-y: 0
-},
-ap: baseRole.maxAP,
-hunger: 1000,
-maxHunger: 2000,
+  initializeSpells(player);
 
-weapon: null,
-armor: null,
-hpRegen: 0,
-hpRegenCooldown: 0,
-rageTurns: 0,
-exhaustedTurns: 0,
-accessory: null,
-quiver: {
-arrows: 0,
-bolts: 0,
-capacity: 0
-},
-rangedWeapon: null,
-ring: null,
-amulet: null,
-hasUsedRevive: false
+  baseRole.startingInventory.forEach(itemInfo => {
+    const itemType = ITEM_TYPES.find(i => i.baseName === itemInfo.baseName);
+    if (itemType) {
+      let newItem = {
+        ...itemType,
+        ...itemInfo,
+        name: itemType.baseName || itemType.name,
+        identified: true,
+        upgradeLevel: 0,
+        enchantment: null
+      };
 
-};
+      if (itemType.type === 'weapon') {
+        const mod = maybeGenerateMod(dungeonLevel);
+        if (mod) newItem = mod.applyTo(newItem);
+      }
 
-baseRole.startingInventory.forEach(itemInfo => {
-const itemType = ITEM_TYPES.find(i => i.baseName === itemInfo.baseName);
-if (itemType) {
-let newItem = {
-...itemType,
-...itemInfo,
-name: itemType.baseName || itemType.name,
-identified: true,
-};
+      player.inventory.push(newItem);
+    }
+  });
 
-if (itemType.type === 'weapon') {
-const mod = maybeGenerateMod(dungeonLevel);
-if (mod) newItem = mod.applyTo(newItem);
-}
-
-player.inventory.push(newItem);
-}
-});
-
-
-player.inventory.forEach(item => {
-if (item.type === 'weapon' && !player.weapon) {
-item.equipped = true;
-player.weapon = item;
-}
-if (item.type === 'armor' && !player.armor) {
-item.equipped = true;
-player.armor = item;
-}
-});
-
-
-// 🧩 Auto-equip any ranged weapon or quiver on start
-player.inventory.forEach(item => {
-if (item.type === 'ranged_weapon' && !player.rangedWeapon) {
-item.equipped = true;
-player.rangedWeapon = item;
-}
-if (item.baseName === 'quiver' && !player.accessory) {
-item.equipped = true;
-player.accessory = item;
-log('You ready your quiver.', 'info');
-autoRefillQuiver();
-}
-});
-updateClassSkillButton();
+  player.inventory.forEach(item => {
+    if (item.type === 'weapon' && !player.weapon) {
+      item.equipped = true;
+      player.weapon = item;
+    }
+    if (item.type === 'armor' && !player.armor) {
+      item.equipped = true;
+      player.armor = item;
+    }
+    if (item.type === 'ranged_weapon' && !player.rangedWeapon) {
+      item.equipped = true;
+      player.rangedWeapon = item;
+    }
+    if (item.baseName === 'quiver' && !player.accessory) {
+      item.equipped = true;
+      player.accessory = item;
+      log('You ready your quiver.', 'info');
+      autoRefillQuiver();
+    }
+  });
+  
+  updateClassSkillButton();
 }
 
 function rollDice(num, sides, modifier = 0) {
@@ -3472,6 +3660,10 @@ function spawnDungeonFeatures(tiles, rooms, features) {
             newFeature.inventory = generateShopInventory();
             newFeature.shopkeeperAngry = false;
         }
+        
+        if (featureType.type === 'enchanter') {
+            log('You sense powerful magic on this level...', 'info');
+        }
 
         if (featureType.type === 'door') {
             newFeature.open = featureType.open;
@@ -3661,8 +3853,72 @@ function spawnMonsters(count) {
         ];
     }
     
-    // Rest of spawnMonsters function continues as before...
-    // (keeping existing vault guardian and spawn logic)
+const vault = dungeon.rooms.find(r => r.isVault);
+if (vault) {
+let candidates = MONSTER_TYPES.filter(t => t.depth >= dungeonLevel && t.depth <= dungeonLevel + 2);
+let guardianType = candidates[candidates.length - 1] || MONSTER_TYPES[MONSTER_TYPES.length - 1];
+let pos = findWalkable(vault);
+
+monsters.push({
+...guardianType,
+x: pos.x,
+y: pos.y,
+maxHp: guardianType.hp,
+hp: guardianType.hp,
+ap: 0,
+maxAP: guardianType.maxAP || 100,
+state: 'guarding',
+guardX: pos.x,
+guardY: pos.y,
+weapon: null,
+exhaustedTurns: 0,
+poisonTurns: 0,
+confusionTurns: 0,
+speedTurns: 0,
+strengthTurns: 0,
+burnTurns: 0,
+paralyzedTurns: 0,
+lastKnownPlayerX: null,
+lastKnownPlayerY: null,
+intrinsics: guardianType.intrinsics ? {
+...guardianType.intrinsics
+}: {}
+});
+}
+
+for (let i = 0; i < count; i++) {
+if (spawnPool.length === 0) break;
+let type = spawnPool[Math.floor(Math.random() * spawnPool.length)];
+let room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+if (!room || room.isVault) continue;
+let pos = findWalkable(room);
+
+const initialState = (type.behavior === 'ambusher' || Math.random() < 0.3) ? 'sleeping': 'wandering';
+
+monsters.push({
+...type,
+x: pos.x,
+y: pos.y,
+maxHp: type.hp,
+hp: type.hp,
+ap: type.ap || 0,
+maxAP: type.maxAP || 100,
+state: initialState,
+weapon: null,
+exhaustedTurns: 0,
+poisonTurns: 0,
+confusionTurns: 0,
+speedTurns: 0,
+strengthTurns: 0,
+burnTurns: 0,
+paralyzedTurns: 0,
+lastKnownPlayerX: null,
+lastKnownPlayerY: null,
+intrinsics: type.intrinsics ? {
+...type.intrinsics
+}: {}
+});
+}
 }
 
 
@@ -4176,28 +4432,39 @@ saveGame(false);
 }
 
 function getPlayerDR() {
-let dr = 1;
-if (player.armor) {
-let armorValue = player.armor.defense || 0;
-if (player.armor.status === 'Blessed') {
-dr += armorValue + 2;
-if (Math.random() < 0.15) {
-log('Your blessed armor deflects the blow!', 'pickup');
-return 999;
-}
-} else if (player.armor.status === 'Cursed') {
-dr += Math.max(0, armorValue - 2);
-} else {
-dr += armorValue;
-}
-if (player.exhaustedTurns > 0) {
-dr = Math.max(0, dr - 2);
-}
-}
-if (player.ring && player.ring.equipped && player.ring.effect?.drBonus) {
-dr += player.ring.effect.drBonus;
-}
-return dr;
+  let dr = 1;
+  if (player.armor) {
+    let armorValue = player.armor.defense || 0;
+
+    if (player.armor.enchantment) {
+      const enchant = ENCHANTMENT_TYPES[player.armor.enchantment];
+      if (enchant.drBonus) {
+        armorValue += enchant.drBonus;
+      }
+    }
+
+    if (player.armor.status === 'Blessed') {
+      dr += armorValue + 2;
+      if (Math.random() < 0.15) {
+        log('Your blessed armor deflects the blow!', 'pickup');
+        return 999;
+      }
+    } else if (player.armor.status === 'Cursed') {
+      dr += Math.max(0, armorValue - 2);
+    } else {
+      dr += armorValue;
+    }
+    
+    if (player.exhaustedTurns > 0) {
+      dr = Math.max(0, dr - 2);
+    }
+  }
+  
+  if (player.ring && player.ring.equipped && player.ring.effect?.drBonus) {
+    dr += player.ring.effect.drBonus;
+  }
+  
+  return dr;
 }
 
 function getPlayerDodgeChance() {
@@ -4628,6 +4895,465 @@ processTurn();
 return true;
 }
 
+
+
+function castSpell(spellKey) {
+  const spell = SPELL_TYPES[spellKey];
+  if (!spell) {
+    log('Unknown spell!', 'damage');
+    return false;
+  }
+
+  if (player.ap < spell.cost) {
+    log(`Not enough AP to cast ${spell.name}! (Need ${spell.cost}, have ${player.ap})`, 'damage');
+    return false;
+  }
+
+  player.ap -= spell.cost;
+
+  switch (spellKey) {
+    case 'magicMissile': return castMagicMissile(spell);
+    case 'fireball': return castFireball(spell);
+    case 'slow': return castSlow(spell);
+    case 'identify': return castIdentify(spell);
+    case 'whirlwind': return castWhirlwind(spell);
+    case 'warcry': return castWarCry(spell);
+    case 'backstab': return castBackstab(spell);
+    case 'poisonWeapon': return castPoisonWeapon(spell);
+    case 'multishot': return castMultishot(spell);
+    case 'piercingShot': return castPiercingShot(spell);
+  }
+
+  return false;
+}
+
+function castMagicMissile(spell) {
+  const nearestMonster = monsters.find(m => {
+    const dist = Math.hypot(m.x - player.x, m.y - player.y);
+    return dist <= spell.range && visible[m.y][m.x];
+  });
+
+  if (!nearestMonster) {
+    log('No target in range!', 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  const damage = rollDice(spell.damage[0], spell.damage[1]);
+  takeMonsterDamage(nearestMonster, damage, 'magic', player);
+  log(`Your magic missiles strike ${nearestMonster.name} for ${damage} damage!`, 'damage');
+
+  if (nearestMonster.hp <= 0) {
+    handleEntityDeath(player, nearestMonster);
+  }
+
+  processTurn();
+  return true;
+}
+
+function castFireball(spell) {
+  log('Select fireball target with cursor, then activate.', 'info');
+  player.isLooking = true;
+  player.lookCursor = { x: player.x, y: player.y };
+  currentActionContext = {
+    action: 'cast-fireball',
+    spell: spell
+  };
+  return true;
+}
+
+function executeFireball(spell, targetX, targetY) {
+  const dist = Math.hypot(targetX - player.x, targetY - player.y);
+  if (dist > spell.range) {
+    log('Target out of range!', 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  log('FWOOSH! A fireball explodes!', 'damage');
+
+  for (let dy = -spell.radius; dy <= spell.radius; dy++) {
+    for (let dx = -spell.radius; dx <= spell.radius; dx++) {
+      const x = targetX + dx;
+      const y = targetY + dy;
+      
+      if (Math.hypot(dx, dy) > spell.radius) continue;
+
+      const damage = rollDice(spell.damage[0], spell.damage[1]);
+
+      monsters.forEach(m => {
+        if (m.x === x && m.y === y) {
+          takeMonsterDamage(m, damage, 'fire', player);
+          log(`${m.name} is burned for ${damage} damage!`, 'damage');
+          if (m.hp <= 0) handleEntityDeath(player, m);
+        }
+      });
+
+      if (player.x === x && player.y === y) {
+        takeDamage(damage, 'fire');
+        log('You are caught in your own fireball!', 'damage');
+      }
+    }
+  }
+
+  processTurn();
+  return true;
+}
+
+function castSlow(spell) {
+  const nearestMonster = monsters.find(m => {
+    const dist = Math.hypot(m.x - player.x, m.y - player.y);
+    return dist <= spell.range && visible[m.y][m.x];
+  });
+
+  if (!nearestMonster) {
+    log('No target in range!', 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  nearestMonster.slowedTurns = spell.duration;
+  log(`${nearestMonster.name} is slowed!`, 'pickup');
+  processTurn();
+  return true;
+}
+
+function castIdentify(spell) {
+  let identifiedCount = 0;
+  player.inventory.forEach(item => {
+    if (!item.identified) {
+      identifyItem(item);
+      identifiedCount++;
+    }
+  });
+  
+  if (identifiedCount === 0) {
+    log('All items already identified!', 'info');
+    player.ap += spell.cost;
+    return false;
+  }
+  
+  log(`Identified ${identifiedCount} items!`, 'pickup');
+  processTurn();
+  return true;
+}
+
+function castWhirlwind(spell) {
+  let hitCount = 0;
+  
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      
+      const targetX = player.x + dx;
+      const targetY = player.y + dy;
+      
+      const monster = monsters.find(m => m.x === targetX && m.y === targetY);
+      if (monster) {
+        const damage = calculateDamage(player, monster);
+        takeMonsterDamage(monster, damage, 'physical', player);
+        hitCount++;
+        
+        if (monster.hp <= 0) {
+          handleEntityDeath(player, monster);
+        }
+      }
+    }
+  }
+
+  if (hitCount > 0) {
+    log(`Your whirlwind strikes ${hitCount} enemies!`, 'damage');
+  } else {
+    log('Your whirlwind hits nothing!', 'info');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  processTurn();
+  return true;
+}
+
+function castWarCry(spell) {
+  let frightenedCount = 0;
+  
+  monsters.forEach(m => {
+    const dist = Math.hypot(m.x - player.x, m.y - player.y);
+    if (dist <= spell.radius && visible[m.y][m.x]) {
+      m.state = 'fleeing';
+      frightenedCount++;
+    }
+  });
+
+  if (frightenedCount === 0) {
+    log('No enemies nearby to frighten!', 'info');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  log(`Your war cry frightens ${frightenedCount} enemies!`, 'pickup');
+  processTurn();
+  return true;
+}
+
+function castBackstab(spell) {
+  if (player.sneakTurns <= 0) {
+    log('You must be sneaking to backstab!', 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  const nearestMonster = monsters.find(m => 
+    Math.hypot(m.x - player.x, m.y - player.y) < 1.5
+  );
+
+  if (!nearestMonster) {
+    log('No adjacent target!', 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  const baseDamage = calculateDamage(player, nearestMonster);
+  const backstabDamage = Math.floor(baseDamage * spell.damageMultiplier);
+  
+  takeMonsterDamage(nearestMonster, backstabDamage, 'physical', player);
+  log(`BACKSTAB! You deal ${backstabDamage} damage to ${nearestMonster.name}!`, 'damage');
+  
+  player.sneakTurns = 0;
+  
+  if (nearestMonster.hp <= 0) {
+    handleEntityDeath(player, nearestMonster);
+  }
+
+  processTurn();
+  return true;
+}
+
+function castPoisonWeapon(spell) {
+  if (!player.weapon) {
+    log('You need a weapon equipped!', 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  player.poisonedWeaponTurns = spell.duration;
+  log('Your weapon drips with poison!', 'pickup');
+  processTurn();
+  return true;
+}
+
+function castMultishot(spell) {
+  if (!player.rangedWeapon || !player.rangedWeapon.equipped) {
+    log('You need a ranged weapon equipped!', 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  const ammoType = player.rangedWeapon.ammoType || 'arrows';
+  const ammoResult = getAvailableAmmo(ammoType);
+  
+  if (!ammoResult || ammoResult.item.count < spell.arrows) {
+    log(`You need ${spell.arrows} arrows!`, 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  const targets = monsters
+    .filter(m => visible[m.y][m.x] && Math.hypot(m.x - player.x, m.y - player.y) <= 8)
+    .slice(0, spell.arrows);
+
+  if (targets.length === 0) {
+    log('No targets in range!', 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  targets.forEach(target => {
+    const damage = getRangedDamage(player.rangedWeapon);
+    takeMonsterDamage(target, damage, 'piercing', player);
+    log(`Arrow strikes ${target.name} for ${damage} damage!`, 'damage');
+    
+    if (target.hp <= 0) {
+      handleEntityDeath(player, target);
+    }
+  });
+
+  consumeAmmo(player, Math.min(spell.arrows, targets.length));
+  
+  log(`Multishot hits ${targets.length} targets!`, 'pickup');
+  processTurn();
+  return true;
+}
+
+function castPiercingShot(spell) {
+  if (!player.rangedWeapon || !player.rangedWeapon.equipped) {
+    log('You need a ranged weapon equipped!', 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  log('Select piercing shot direction with cursor, then activate.', 'info');
+  player.isLooking = true;
+  player.lookCursor = { x: player.x, y: player.y };
+  currentActionContext = {
+    action: 'cast-piercing-shot',
+    spell: spell
+  };
+  return true;
+}
+
+function executePiercingShot(spell, dx, dy) {
+  if (!player.rangedWeapon) {
+    player.ap += spell.cost;
+    return false;
+  }
+
+  const ammoType = player.rangedWeapon.ammoType || 'arrows';
+  if (!consumeAmmo(player, 1)) {
+    log(`Out of ${ammoType}!`, 'damage');
+    player.ap += spell.cost;
+    return false;
+  }
+
+  const path = traceLine(player.x, player.y, dx, dy, 12);
+  let hitCount = 0;
+
+  for (const {x, y} of path) {
+    const monster = monsters.find(m => m.x === x && m.y === y);
+    if (monster) {
+      const damage = getRangedDamage(player.rangedWeapon);
+      takeMonsterDamage(monster, damage, 'piercing', player);
+      log(`Piercing arrow hits ${monster.name} for ${damage}!`, 'damage');
+      hitCount++;
+      
+      if (monster.hp <= 0) {
+        handleEntityDeath(player, monster);
+      }
+    }
+  }
+
+  if (hitCount === 0) {
+    log('Your arrow flies harmlessly.', 'info');
+  } else {
+    log(`Piercing shot hits ${hitCount} enemies!`, 'pickup');
+  }
+  
+  processTurn();
+  return true;
+}
+
+function showEnchantmentModal(item) {
+  let modal = document.getElementById('enchant-modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'enchant-modal';
+  modal.className = 'modal show';
+
+  const validEnchantments = Object.entries(ENCHANTMENT_TYPES)
+    .filter(([key, ench]) => ench.type === item.type);
+
+  const currentLevel = item.upgradeLevel || 0;
+  const canUpgrade = currentLevel < MAX_UPGRADE_LEVEL;
+  const nextLevel = currentLevel + 1;
+  const upgradeCost = canUpgrade ? getUpgradeCost(currentLevel) : 0;
+  const nextMultiplier = canUpgrade ? getUpgradeMultiplier(nextLevel) : 0;
+
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <h2 style="color: #0f0;">⚡ Enhance Equipment</h2>
+      
+      <div style="background: #001100; padding: 10px; margin: 10px 0; border: 1px solid #0f0; border-radius: 4px;">
+        <div style="font-size: 14px; font-weight: bold;">${getItemDisplayName(item)}</div>
+        <div style="font-size: 11px; color: #888;">
+          ${item.type === 'weapon' ? `Damage: ${item.damage}` : `DR: ${item.defense}`}
+          ${item.upgradeLevel ? ` | Upgrade: +${item.upgradeLevel}` : ''}
+        </div>
+        ${item.enchantment ? `<div style="color: #0af; font-size: 11px;">Enchantment: ${ENCHANTMENT_TYPES[item.enchantment].name}</div>` : ''}
+      </div>
+
+      <div style="margin: 15px 0;">
+        <h3 style="color: #ff0; font-size: 14px; margin-bottom: 8px;">💎 Upgrade (+${nextLevel})</h3>
+        ${canUpgrade ? `
+          <button class="modal-btn" id="upgrade-item" style="width: 100%; margin-bottom: 5px;">
+            Upgrade for ${upgradeCost} gold<br>
+            <span style="font-size: 11px;">×${nextMultiplier.toFixed(1)} effectiveness (+${Math.floor((nextMultiplier - 1) * 100)}%)</span>
+          </button>
+        ` : `<div style="color: #888; text-align: center; padding: 10px;">Max upgrade level reached! (+${MAX_UPGRADE_LEVEL})</div>`}
+      </div>
+
+      <div style="margin: 15px 0;">
+        <h3 style="color: #0af; font-size: 14px; margin-bottom: 8px;">✨ Enchantments</h3>
+        ${item.enchantment ? `
+          <div style="color: #f80; font-size: 11px; margin-bottom: 10px; text-align: center;">
+            Already enchanted. New enchantment will replace current.
+          </div>
+        ` : ''}
+        <div id="enchantment-list" style="display: flex; flex-direction: column; gap: 5px;">
+          ${validEnchantments.map(([key, ench]) => `
+            <button class="modal-btn enchant-btn" data-enchant="${key}" style="text-align: left; padding: 8px;">
+              <div style="display: flex; justify-content: space-between;">
+                <span><strong>${ench.name}</strong> - ${ench.description}</span>
+                <span style="color: #ff0;">${ench.cost}g</span>
+              </div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <button class="modal-btn" id="close-enchant">Cancel</button>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const upgradeBtn = document.getElementById('upgrade-item');
+  if (upgradeBtn) {
+    upgradeBtn.addEventListener('click', () => {
+      if (player.gold >= upgradeCost) {
+        player.gold -= upgradeCost;
+        
+        const oldMultiplier = getUpgradeMultiplier(currentLevel);
+        item.upgradeLevel = nextLevel;
+        
+        if (item.type === 'weapon') {
+          item.damage = Math.floor(item.damage * nextMultiplier / oldMultiplier);
+        } else if (item.type === 'armor') {
+          item.defense = Math.floor(item.defense * nextMultiplier / oldMultiplier);
+        }
+        
+        log(`${getItemDisplayName(item)} upgraded to +${item.upgradeLevel}!`, 'pickup');
+        updateStats();
+        modal.remove();
+        showEnchantmentModal(item);
+      } else {
+        log('Not enough gold!', 'damage');
+      }
+    });
+  }
+
+  document.querySelectorAll('.enchant-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const enchantKey = btn.dataset.enchant;
+      const enchant = ENCHANTMENT_TYPES[enchantKey];
+      
+      if (player.gold >= enchant.cost) {
+        player.gold -= enchant.cost;
+        item.enchantment = enchantKey;
+        
+        log(`${getItemDisplayName(item)} enchanted with ${enchant.name}!`, 'pickup');
+        updateStats();
+        modal.remove();
+      } else {
+        log('Not enough gold!', 'damage');
+      }
+    });
+  });
+
+  document.getElementById('close-enchant').addEventListener('click', () => {
+    modal.remove();
+  });
+}
+
 function useItem(item, isStarting = false) {
 // ✅ FIX 4: Cancel any active action modes
 if (!isStarting) {
@@ -4905,317 +5631,352 @@ return true;
 }
 
 function regenerateAP() {
-if (player.ap < player.maxAP) {
-let regenAmount = player.apRegen || 100;
+  if (player.ap < player.maxAP) {
+    let regenAmount = player.apRegen || 100;
 
-if (player.ring && player.ring.equipped && player.ring.effect?.apRegenBonus) {
-regenAmount += player.ring.effect.apRegenBonus;
-}
+    if (player.ring && player.ring.equipped && player.ring.effect?.apRegenBonus) {
+      regenAmount += player.ring.effect.apRegenBonus;
+    }
 
-if (player.exhaustedTurns > 0) {
-regenAmount = Math.floor(regenAmount * 0.5);
-}
+    if (player.exhaustedTurns > 0) {
+      regenAmount = Math.floor(regenAmount * 0.5);
+    }
 
-player.ap = Math.min(player.ap + regenAmount, player.maxAP);
-}
+    player.ap = Math.min(player.ap + regenAmount, player.maxAP);
+  }
 
-monsters.forEach(m => {
-const maxAP = m.maxAP || (m.apRegen * 2) || 200;
-if (typeof m.ap !== 'number') m.ap = 0;
+  monsters.forEach(m => {
+    const maxAP = m.maxAP || (m.apRegen * 2) || 200;
+    if (typeof m.ap !== 'number') m.ap = 0;
 
-let regenAmount = m.apRegen || 100;
+    let regenAmount = m.apRegen || 100;
 
-if (m.exhaustedTurns && m.exhaustedTurns > 0) {
-regenAmount = Math.floor(regenAmount * 0.5);
-}
+    if (m.slowedTurns && m.slowedTurns > 0) {
+      regenAmount = Math.floor(regenAmount * 0.5);
+    }
 
-m.ap = Math.min(m.ap + regenAmount, maxAP);
-});
+    if (m.exhaustedTurns && m.exhaustedTurns > 0) {
+      regenAmount = Math.floor(regenAmount * 0.5);
+    }
 
-pets.forEach(p => {
-const maxAP = p.maxAP || (p.apRegen * 2) || 200;
-if (typeof p.ap !== 'number') p.ap = 0;
+    m.ap = Math.min(m.ap + regenAmount, maxAP);
+  });
 
-let regenAmount = p.apRegen || 100;
+  pets.forEach(p => {
+    const maxAP = p.maxAP || (p.apRegen * 2) || 200;
+    if (typeof p.ap !== 'number') p.ap = 0;
 
-if (p.exhaustedTurns && p.exhaustedTurns > 0) {
-regenAmount = Math.floor(regenAmount * 0.5);
-}
+    let regenAmount = p.apRegen || 100;
 
-p.ap = Math.min(p.ap + regenAmount, maxAP);
-});
+    if (p.exhaustedTurns && p.exhaustedTurns > 0) {
+      regenAmount = Math.floor(regenAmount * 0.5);
+    }
 
-traps.forEach(t => {
-if (t.apRegen != null) {
-const maxAP = t.maxAP || 100;
-if (typeof t.ap !== 'number') t.ap = 0;
-t.ap = Math.min(t.ap + t.apRegen, maxAP);
-}
-});
+    p.ap = Math.min(p.ap + regenAmount, maxAP);
+  });
+
+  traps.forEach(t => {
+    if (t.apRegen != null) {
+      const maxAP = t.maxAP || 100;
+      if (typeof t.ap !== 'number') t.ap = 0;
+      t.ap = Math.min(t.ap + t.apRegen, maxAP);
+    }
+  });
 }
 
 function applyPlayerStatusEffects() {
-// HP regeneration
-if (player.hpRegenCooldown > 0) {
-player.hpRegenCooldown--;
-}
+  // HP regeneration
+  if (player.hpRegenCooldown > 0) {
+    player.hpRegenCooldown--;
+  }
 
-if (player.hpRegenCooldown <= 0 && player.hp < player.maxHp && player.hunger > 500) {
-let regenAmount = 1;
-if (player.ring && player.ring.equipped && player.ring.effect?.regenBonus) {
-regenAmount += player.ring.effect.regenBonus;
-}
-player.hp += regenAmount;
-player.hpRegenCooldown = 20;
-}
+  if (player.hpRegenCooldown <= 0 && player.hp < player.maxHp && player.hunger > 500) {
+    let regenAmount = 1;
+    
+    if (player.ring && player.ring.equipped && player.ring.effect?.regenBonus) {
+      regenAmount += player.ring.effect.regenBonus;
+    }
+    
+    if (player.armor && player.armor.enchantment === 'regeneration') {
+      regenAmount += ENCHANTMENT_TYPES.regeneration.regenBonus;
+    }
+    
+    player.hp += regenAmount;
+    player.hpRegenCooldown = 20;
+  }
 
-// Hunger
-player.hunger -= 1;
-if (player.hunger <= 0) {
-log('You are starving!', 'damage');
-takeDamage(1);
-}
+  // Hunger
+  player.hunger -= 1;
+  if (player.hunger <= 0) {
+    log('You are starving!', 'damage');
+    takeDamage(1);
+  }
 
-// Poison
-if (player.poisonTurns > 0) {
-takeDamage(1);
-player.poisonTurns--;
-if (player.poisonTurns === 0) log('The poison wears off.', 'pickup');
-}
+  // Poison
+  if (player.poisonTurns > 0) {
+    takeDamage(1);
+    player.poisonTurns--;
+    if (player.poisonTurns === 0) log('The poison wears off.', 'pickup');
+  }
 
-// Confusion
-if (player.confusionTurns > 0) {
-player.confusionTurns--;
-if (player.confusionTurns === 0) log('You feel less confused.', 'pickup');
-}
+  // Confusion
+  if (player.confusionTurns > 0) {
+    player.confusionTurns--;
+    if (player.confusionTurns === 0) log('You feel less confused.', 'pickup');
+  }
 
-// Strength
-if (player.strengthTurns > 0) {
-player.strengthTurns--;
-if (player.strengthTurns === 0) log('You feel weaker.', 'pickup');
-}
+  // Strength
+  if (player.strengthTurns > 0) {
+    player.strengthTurns--;
+    if (player.strengthTurns === 0) log('You feel weaker.', 'pickup');
+  }
 
-// Speed
-if (player.speedTurns > 0) {
-player.speedTurns--;
-if (player.speedTurns === 0) log('You feel normal speed again.', 'pickup');
-}
+  // Speed
+  if (player.speedTurns > 0) {
+    player.speedTurns--;
+    if (player.speedTurns === 0) log('You feel normal speed again.', 'pickup');
+  }
 
-// Sneak
-if (player.sneakTurns > 0) {
-player.sneakTurns--;
-if (player.sneakTurns === 0) log('You step back into the light.', 'pickup');
-}
+  // Sneak
+  if (player.sneakTurns > 0) {
+    player.sneakTurns--;
+    if (player.sneakTurns === 0) log('You step back into the light.', 'pickup');
+  }
 
-// Burning
-if (player.burnTurns > 0) {
-takeDamage(2);
-player.burnTurns--;
-log('The flames sear your flesh!', 'damage');
-if (player.burnTurns === 0) log('The fire dies down.', 'pickup');
-}
+  // Poisoned Weapon (Rogue ability)
+  if (player.poisonedWeaponTurns > 0) {
+    player.poisonedWeaponTurns--;
+    if (player.poisonedWeaponTurns === 0) log('Your weapon is no longer poisoned.', 'info');
+  }
 
-// Fire tile damage
-const fireFeature = dungeon.features.find(f =>
-f.type === 'fire' && f.x === player.x && f.y === player.y
-);
-if (fireFeature) {
-const fireDamage = fireFeature.damage || 2;
-takeDamage(fireDamage);
-log('You are burning!', 'damage');
-}
+  // Burning
+  if (player.burnTurns > 0) {
+    takeDamage(2);
+    player.burnTurns--;
+    log('The flames sear your flesh!', 'damage');
+    if (player.burnTurns === 0) log('The fire dies down.', 'pickup');
+  }
 
-// Rage countdown
-if (player.rageTurns > 0) {
-player.rageTurns--;
-if (player.rageTurns === 0) {
-log('Your rage subsides. You feel exhausted.', 'damage');
-player.exhaustedTurns = 15;
-}
-}
+  // Fire tile damage
+  const fireFeature = dungeon.features.find(f =>
+    f.type === 'fire' && f.x === player.x && f.y === player.y
+  );
+  if (fireFeature) {
+    const fireDamage = fireFeature.damage || 2;
+    takeDamage(fireDamage);
+    log('You are burning!', 'damage');
+  }
 
-// Exhaustion countdown
-if (player.exhaustedTurns > 0) {
-player.exhaustedTurns--;
-if (player.exhaustedTurns === 0) {
-log('Your exhaustion subsides. You feel normal.', 'pickup');
-}
-}
+  // Rage countdown
+  if (player.rageTurns > 0) {
+    player.rageTurns--;
+    if (player.rageTurns === 0) {
+      log('Your rage subsides. You feel exhausted.', 'damage');
+      player.exhaustedTurns = 15;
+    }
+  }
 
-// Torch burning
-player.inventory.forEach(item => {
-if (item.baseName === 'torch' && item.isLit && item.turnsRemaining > 0) {
-item.turnsRemaining--;
-if (item.turnsRemaining === 0) {
-item.isLit = false;
-log('Your torch burns out completely.', 'damage');
-computeFOV(player.x, player.y, getVisionRadius());
-} else if (item.turnsRemaining === 20) {
-log('Your torch is burning low!', 'info');
-}
-}
-});
+  // Exhaustion countdown
+  if (player.exhaustedTurns > 0) {
+    player.exhaustedTurns--;
+    if (player.exhaustedTurns === 0) {
+      log('Your exhaustion subsides. You feel normal.', 'pickup');
+    }
+  }
+
+  // Torch burning
+  player.inventory.forEach(item => {
+    if (item.baseName === 'torch' && item.isLit && item.turnsRemaining > 0) {
+      item.turnsRemaining--;
+      if (item.turnsRemaining === 0) {
+        item.isLit = false;
+        log('Your torch burns out completely.', 'damage');
+        computeFOV(player.x, player.y, getVisionRadius());
+      } else if (item.turnsRemaining === 20) {
+        log('Your torch is burning low!', 'info');
+      }
+    }
+  });
 }
 
 // This handles monster and pet status effects
 function applyMonsterStatusEffects() {
-// Process monsters
-for (let i = monsters.length - 1; i >= 0; i--) {
-const m = monsters[i];
-if (!m) continue;
+  // Process monsters
+  for (let i = monsters.length - 1; i >= 0; i--) {
+    const m = monsters[i];
+    if (!m) continue;
 
-// Confusion
-if (m.confusionTurns > 0) m.confusionTurns--;
+    // Confusion
+    if (m.confusionTurns > 0) m.confusionTurns--;
+    
+    // Slowed (from Wizard spell)
+    if (m.slowedTurns > 0) {
+      m.slowedTurns--;
+      if (m.slowedTurns === 0) {
+        log(`${m.name} is no longer slowed.`, 'info');
+      }
+    }
 
-// Burning
-if (m.burnTurns > 0) {
-m.hp -= 2;
-m.burnTurns--;
-log(`${m.name} burns!`, 'damage');
-if (m.burnTurns === 0) log(`${m.name}'s flames extinguish.`, 'pickup');
-if (m.hp <= 0) {
-handleEntityDeath(player, m);
-continue;
-}
-}
+    // Burning
+    if (m.burnTurns > 0) {
+      m.hp -= 2;
+      m.burnTurns--;
+      log(`${m.name} burns!`, 'damage');
+      if (m.burnTurns === 0) log(`${m.name}'s flames extinguish.`, 'pickup');
+      if (m.hp <= 0) {
+        handleEntityDeath(player, m);
+        continue;
+      }
+    }
 
-// Fire tile damage
-const monsterFireFeature = dungeon.features.find(f =>
-f.type === 'fire' && f.x === m.x && f.y === m.y
-);
-if (monsterFireFeature) {
-m.hp -= monsterFireFeature.damage || 2;
-if (m.hp <= 0) {
-handleEntityDeath(player, m);
-continue;
-}
-}
-}
+    // Fire tile damage
+    const monsterFireFeature = dungeon.features.find(f =>
+      f.type === 'fire' && f.x === m.x && f.y === m.y
+    );
+    if (monsterFireFeature) {
+      m.hp -= monsterFireFeature.damage || 2;
+      if (m.hp <= 0) {
+        handleEntityDeath(player, m);
+        continue;
+      }
+    }
+  }
 
-// Process pets
-for (let i = pets.length - 1; i >= 0; i--) {
-const pet = pets[i];
-if (!pet) continue;
+  // Process pets
+  for (let i = pets.length - 1; i >= 0; i--) {
+    const pet = pets[i];
+    if (!pet) continue;
 
-// Poison
-if (pet.poisonTurns > 0) {
-pet.hp -= 1;
-pet.poisonTurns--;
-log(`Your ${pet.name} is poisoned!`, 'damage');
-if (pet.poisonTurns === 0) log(`The poison wears off your ${pet.name}.`, 'pickup');
-if (pet.hp <= 0) {
-handleEntityDeath(player, pet);
-continue;
-}
-}
+    if (pet.poisonTurns > 0) {
+      pet.hp -= 1;
+      pet.poisonTurns--;
+      log(`Your ${pet.name} is poisoned!`, 'damage');
+      if (pet.poisonTurns === 0) log(`The poison wears off your ${pet.name}.`, 'pickup');
+      if (pet.hp <= 0) {
+        handleEntityDeath(player, pet);
+        continue;
+      }
+    }
 
-// Confusion
-if (pet.confusionTurns > 0) {
-pet.confusionTurns--;
-if (pet.confusionTurns === 0) log(`Your ${pet.name} feels less confused.`, 'pickup');
-}
+    if (pet.confusionTurns > 0) {
+      pet.confusionTurns--;
+      if (pet.confusionTurns === 0) log(`Your ${pet.name} feels less confused.`, 'pickup');
+    }
 
-// Speed
-if (pet.speedTurns > 0) {
-pet.speedTurns--;
-if (pet.speedTurns === 0) log(`Your ${pet.name} feels normal speed again.`, 'pickup');
-}
+    if (pet.speedTurns > 0) {
+      pet.speedTurns--;
+      if (pet.speedTurns === 0) log(`Your ${pet.name} feels normal speed again.`, 'pickup');
+    }
 
-// Strength
-if (pet.strengthTurns > 0) {
-pet.strengthTurns--;
-if (pet.strengthTurns === 0) log(`Your ${pet.name} feels weaker.`, 'pickup');
-}
+    if (pet.strengthTurns > 0) {
+      pet.strengthTurns--;
+      if (pet.strengthTurns === 0) log(`Your ${pet.name} feels weaker.`, 'pickup');
+    }
 
-// Burning
-if (pet.burnTurns > 0) {
-pet.hp -= 2;
-pet.burnTurns--;
-log(`Your ${pet.name} burns!`, 'damage');
-if (pet.burnTurns === 0) log(`Your ${pet.name}'s flames extinguish.`, 'pickup');
-if (pet.hp <= 0) {
-handleEntityDeath(player, pet);
-continue;
-}
-}
+    if (pet.burnTurns > 0) {
+      pet.hp -= 2;
+      pet.burnTurns--;
+      log(`Your ${pet.name} burns!`, 'damage');
+      if (pet.burnTurns === 0) log(`Your ${pet.name}'s flames extinguish.`, 'pickup');
+      if (pet.hp <= 0) {
+        handleEntityDeath(player, pet);
+        continue;
+      }
+    }
 
-// Fire tile damage
-const petFireFeature = dungeon.features.find(f =>
-f.type === 'fire' && f.x === pet.x && f.y === pet.y
-);
-if (petFireFeature) {
-pet.hp -= petFireFeature.damage || 2;
-if (pet.hp <= 0) {
-handleEntityDeath(player, pet);
-continue;
-}
-}
-}
+    const petFireFeature = dungeon.features.find(f =>
+      f.type === 'fire' && f.x === pet.x && f.y === pet.y
+    );
+    if (petFireFeature) {
+      pet.hp -= petFireFeature.damage || 2;
+      if (pet.hp <= 0) {
+        handleEntityDeath(player, pet);
+        continue;
+      }
+    }
+  }
 }
 
 function calculateDamage(attacker, target) {
-let damage = 1;
-let weapon = attacker.weapon;
+  let damage = 1;
+  let weapon = attacker.weapon;
 
-if (weapon) {
-damage = rollDice(1, weapon.damage);
+  if (weapon) {
+    damage = rollDice(1, weapon.damage);
 
-if (attacker === player) {
-if (weapon.status === 'Blessed') {
-damage += rollDice(1, 3);
-if (Math.random() < 0.1) {
-damage *= 2;
-log('Your blessed weapon delivers a crushing blow!', 'pickup');
-}
-} else if (weapon.status === 'Cursed') {
-damage = Math.max(1, damage - 2);
-if (Math.random() < 0.15) {
-takeDamage(2);
-log('Your cursed weapon backfires!', 'damage');
-}
-}
-}
+    if (weapon.enchantment) {
+      const enchant = ENCHANTMENT_TYPES[weapon.enchantment];
+      if (enchant.damageBonus) {
+        damage += enchant.damageBonus;
+      }
+    }
 
-if (target.resists === weapon.damageType) {
-damage = Math.max(1, Math.floor(damage / 2));
-if (attacker === player) {
-log(`${target.name} resists the ${weapon.damageType} damage!`, 'info');
-}
-}
-} else {
-damage = rollDice(1, attacker.damage || 2);
-}
+    if (attacker === player) {
+      if (weapon.status === 'Blessed') {
+        damage += rollDice(1, 3);
+        if (Math.random() < 0.1) {
+          damage *= 2;
+          log('Your blessed weapon delivers a crushing blow!', 'pickup');
+        }
+      } else if (weapon.status === 'Cursed') {
+        damage = Math.max(1, damage - 2);
+        if (Math.random() < 0.15) {
+          takeDamage(2);
+          log('Your cursed weapon backfires!', 'damage');
+        }
+      }
 
-if (attacker === player) {
-if (player.rageTurns > 0) {
-damage += rollDice(1, 6);
-}
-if (player.exhaustedTurns > 0) {
-damage = Math.max(1, damage - 3);
-}
-if (player.ring && player.ring.equipped && player.ring.effect?.damageBonus) {
-damage += player.ring.effect.damageBonus;
-}
-if (player.strengthTurns > 0) {
-damage += 2;
-}
-}
+      if (player.poisonedWeaponTurns > 0 && target) {
+        target.poisonTurns = (target.poisonTurns || 0) + 3;
+        log(`${target.name} is poisoned!`, 'pickup');
+      }
+    }
 
-if (attacker !== player) {
-if (attacker.swarmBonus && attacker.swarmBonus > 0) {
-damage += attacker.swarmBonus;
-}
+    if (target.resists === weapon.damageType) {
+      damage = Math.max(1, Math.floor(damage / 2));
+      if (attacker === player) {
+        log(`${target.name} resists the ${weapon.damageType} damage!`, 'info');
+      }
+    }
+  } else {
+    damage = rollDice(1, attacker.damage || 2);
+  }
 
-if (attacker.strengthTurns && attacker.strengthTurns > 0) {
-damage += 2;
-}
+  if (attacker === player) {
+    if (player.rageTurns > 0) {
+      damage += rollDice(1, 6);
+    }
+    if (player.exhaustedTurns > 0) {
+      damage = Math.max(1, damage - 3);
+    }
+    if (player.ring && player.ring.equipped && player.ring.effect?.damageBonus) {
+      damage += player.ring.effect.damageBonus;
+    }
+    if (player.strengthTurns > 0) {
+      damage += 2;
+    }
 
-if (attacker.exhaustedTurns && attacker.exhaustedTurns > 0) {
-damage = Math.max(1, damage - 2);
-}
-}
+    if (weapon && weapon.enchantment === 'vampiric') {
+      const heal = Math.floor(damage * ENCHANTMENT_TYPES.vampiric.lifesteal);
+      if (heal > 0) {
+        player.hp = Math.min(player.maxHp, player.hp + heal);
+        log(`You drain ${heal} HP!`, 'pickup');
+      }
+    }
+  }
 
-return Math.max(1, damage);
+  if (attacker !== player) {
+    if (attacker.swarmBonus && attacker.swarmBonus > 0) {
+      damage += attacker.swarmBonus;
+    }
+    if (attacker.strengthTurns && attacker.strengthTurns > 0) {
+      damage += 2;
+    }
+    if (attacker.exhaustedTurns && attacker.exhaustedTurns > 0) {damage = Math.max(1, damage - 2);
+    }
+  }
+
+  return Math.max(1, damage);
 }
 
 function attack(attacker, target) {
@@ -6327,6 +7088,55 @@ attemptSteal(item, successChance, index);
 itemList.addEventListener('click', itemList._shopClickHandler);
 }
 
+function openEnchanterShop() {
+  const modal = document.getElementById('enchant-shop-modal');
+  document.getElementById('enchant-gold').textContent = player.gold;
+  
+  const equipList = document.getElementById('enchant-equipment-list');
+  equipList.innerHTML = '';
+  
+  const enchantableItems = player.inventory.filter(i => 
+    (i.type === 'weapon' || i.type === 'armor') && i.equipped
+  );
+  
+  if (enchantableItems.length === 0) {
+    equipList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">No equipped items to enhance.</div>';
+  } else {
+    enchantableItems.forEach(item => {
+      const itemDiv = document.createElement('button');
+      itemDiv.className = 'modal-btn';
+      itemDiv.style.cssText = `
+        text-align: left;
+        padding: 10px;
+        background: #002200;
+        cursor: pointer;
+      `;
+      
+      itemDiv.innerHTML = `
+        <div style="font-weight: bold;">${getItemDisplayName(item)}</div>
+        <div style="font-size: 11px; color: #888; margin-top: 2px;">
+          ${item.type === 'weapon' ? `Damage: ${item.damage}` : `DR: ${item.defense}`}
+          ${item.upgradeLevel ? ` | +${item.upgradeLevel}` : ''}
+          ${item.enchantment ? ` | ${ENCHANTMENT_TYPES[item.enchantment].name}` : ''}
+        </div>
+      `;
+      
+      itemDiv.addEventListener('click', () => {
+        modal.classList.remove('show');
+        showEnchantmentModal(item);
+      });
+      
+      equipList.appendChild(itemDiv);
+    });
+  }
+  
+  modal.classList.add('show');
+}
+
+document.getElementById('close-enchant-shop').addEventListener('click', () => {
+  document.getElementById('enchant-shop-modal').classList.remove('show');
+});
+
 function calculatePrice(item, depth) {
 const priceRatio = item.basePrice !== undefined ? item.basePrice: 1.0;
 
@@ -6783,6 +7593,15 @@ openShop(shopFeature);
 return;
 }
 
+// Enchanter: open the enchanter interface when the player steps on it
+const enchanterFeature = dungeon.features.find(fe =>
+  fe.type === 'enchanter' && fe.x === player.x && fe.y === player.y
+);
+if (enchanterFeature) {
+  openEnchanterShop();
+  return;
+}
+  
 // Finish turn
 processTurn();
 updateActivateButton();
@@ -7816,27 +8635,43 @@ function showDevOverlay() {
         <button data-dev="close" style="background: #400; border: 1px solid #f00; color: #f00; padding: 4px 8px; border-radius: 4px; cursor: pointer;">✕ Close</button>
       </div>
 
-     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-  <button data-dev="spawn-monster">🧟 Spawn Monster</button>
-  <button data-dev="level-up">⭐ Level Up</button>
-  <button data-dev="spawn-stairs">🪜 Spawn Stairs</button>
-  <button data-dev="give-gold">💰 +1000 Gold</button>
-  <button data-dev="give-potion">🧪 Give Potions</button>
-  <button data-dev="give-pickaxe">⛏️ Give Pick-axe</button>
-  <button data-dev="give-torch">🔦 Give Torch</button>
-  <button data-dev="give-key">🔑 Give Key</button>
-  <button data-dev="give-amulet-esp">🔮 Give ESP Amulet</button>
-  <button data-dev="spawn-hidden-item">👁️ Hidden Item</button>
-  <button data-dev="spawn-trap">🪤 Spawn Trap</button>
-  <button data-dev="spawn-shop">🏪 Spawn Shop</button>
-  <button data-dev="spawn-environmental">📦 Spawn Environmental</button>
-  <button data-dev="spawn-chest">💎 Spawn Chest</button>
-  <button data-dev="generate-test-level">🧪 Test Level</button>
-  <button data-dev="heal-full">❤️ Full Heal</button>
-  <button data-dev="identify-all">🔍 Identify All</button>
-  <button data-dev="teleport-player">🌀 Teleport Player</button>
-  <button data-dev="kill-all-monsters">☠️ Kill All Monsters</button>
-</div>
+    
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <!-- SPAWNING -->
+        <button data-dev="spawn-monster">🧟 Spawn Monster</button>
+        <button data-dev="spawn-stairs">🪜 Spawn Stairs</button>
+        <button data-dev="spawn-environmental">📦 Spawn Environmental</button>
+        <button data-dev="spawn-chest">💎 Spawn Chest</button>
+        <button data-dev="spawn-trap">🪤 Spawn Trap</button>
+        <button data-dev="spawn-shop">🏪 Spawn Shop</button>
+        <button data-dev="spawn-enchanter">✦ Spawn Enchanter</button>
+        <button data-dev="spawn-hidden-item">👁️ Hidden Item</button>
+        
+        <!-- PLAYER POWER -->
+        <button data-dev="level-up">⭐ Level Up</button>
+        <button data-dev="give-gold">💰 +100000 Gold</button>
+        <button data-dev="heal-full">❤️ Full Heal</button>
+        <button data-dev="restore-ap">⚡ Restore AP</button>
+        
+        <!-- ITEMS -->
+        <button data-dev="give-potion">🧪 Give Potions</button>
+        <button data-dev="give-pickaxe">⛏️ Give Pick-axe</button>
+        <button data-dev="give-torch">🔦 Give Torch</button>
+        <button data-dev="give-key">🔑 Give Key</button>
+        <button data-dev="give-amulet-esp">🔮 Give ESP Amulet</button>
+        <button data-dev="identify-all">🔍 Identify All</button>
+        
+        <!-- ENCHANTING/SPELLS -->
+        <button data-dev="learn-all-spells">📖 Learn All Spells</button>
+        <button data-dev="max-upgrade-weapon">⚔️ Max Upgrade Weapon</button>
+        <button data-dev="enchant-weapon">✨ Enchant Weapon</button>
+        <button data-dev="enchant-armor">🛡️ Enchant Armor</button>
+        
+        <!-- UTILITY -->
+        <button data-dev="generate-test-level">🧪 Test Level</button>
+        <button data-dev="teleport-player">🌀 Teleport Player</button>
+        <button data-dev="kill-all-monsters">☠️ Kill All Monsters</button>
+      </div>
     `;
 
     styleDevButtons(overlay);
@@ -7923,8 +8758,8 @@ break;
 }
 
 case 'give-gold': {
-player.gold += 1000;
-log('Dev: Added 1000 gold.', 'pickup');
+player.gold += 100000;
+log('Dev: Added 100000 gold.', 'pickup');
 updateStats();
 break;
 }
@@ -8166,6 +9001,105 @@ log(`Dev: Killed all ${count} monsters.`,
 needsRedraw = true;
 break;
 }
+
+case 'spawn-enchanter': {
+      const pos = findWalkableAdjacent(player.x, player.y) || {
+        x: player.x + 1,
+        y: player.y
+      };
+
+      const enchanterFeature = {
+        x: pos.x,
+        y: pos.y,
+        type: 'enchanter',
+        glyph: '✦',
+        color: '#0af'
+      };
+
+      dungeon.features.push(enchanterFeature);
+      dungeon.tiles[pos.y][pos.x] = '✦';
+
+      log(`Dev: Spawned enchanter at (${pos.x}, ${pos.y}). Walk onto it to open.`, 'pickup');
+      computeFOV(player.x, player.y, getVisionRadius());
+      needsRedraw = true;
+      break;
+    }
+
+    case 'learn-all-spells': {
+      if (!player.spells) player.spells = [];
+      
+      const allSpells = Object.keys(SPELL_TYPES).filter(key => 
+        SPELL_TYPES[key].class === player.role
+      );
+      
+      allSpells.forEach(spellKey => {
+        if (!player.spells.includes(spellKey)) {
+          player.spells.push(spellKey);
+        }
+      });
+      
+      log(`Dev: Learned ${allSpells.length} spells for ${player.role}.`, 'pickup');
+      break;
+    }
+
+    case 'max-upgrade-weapon': {
+      if (!player.weapon) {
+        log('Dev: No weapon equipped!', 'damage');
+        break;
+      }
+      
+      const oldMultiplier = getUpgradeMultiplier(player.weapon.upgradeLevel || 0);
+      player.weapon.upgradeLevel = MAX_UPGRADE_LEVEL;
+      const newMultiplier = getUpgradeMultiplier(MAX_UPGRADE_LEVEL);
+      player.weapon.damage = Math.floor(player.weapon.damage * newMultiplier / oldMultiplier);
+      
+      log(`Dev: Upgraded ${getItemDisplayName(player.weapon)} to +${MAX_UPGRADE_LEVEL}!`, 'pickup');
+      updateStats();
+      break;
+    }
+
+    case 'enchant-weapon': {
+      if (!player.weapon) {
+        log('Dev: No weapon equipped!', 'damage');
+        break;
+      }
+      
+      const weaponEnchants = Object.keys(ENCHANTMENT_TYPES).filter(key => 
+        ENCHANTMENT_TYPES[key].type === 'weapon'
+      );
+      
+      const randomEnchant = weaponEnchants[Math.floor(Math.random() * weaponEnchants.length)];
+      player.weapon.enchantment = randomEnchant;
+      
+      log(`Dev: Enchanted weapon with ${ENCHANTMENT_TYPES[randomEnchant].name}!`, 'pickup');
+      updateStats();
+      break;
+    }
+
+    case 'enchant-armor': {
+      if (!player.armor) {
+        log('Dev: No armor equipped!', 'damage');
+        break;
+      }
+      
+      const armorEnchants = Object.keys(ENCHANTMENT_TYPES).filter(key => 
+        ENCHANTMENT_TYPES[key].type === 'armor'
+      );
+      
+      const randomEnchant = armorEnchants[Math.floor(Math.random() * armorEnchants.length)];
+      player.armor.enchantment = randomEnchant;
+      
+      log(`Dev: Enchanted armor with ${ENCHANTMENT_TYPES[randomEnchant].name}!`, 'pickup');
+      updateStats();
+      break;
+    }
+
+    case 'restore-ap': {
+      player.ap = player.maxAP;
+      log('Dev: AP fully restored.', 'pickup');
+      updateStats();
+      break;
+    }
 }
 }
 
@@ -8752,126 +9686,152 @@ document.getElementById('actions-modal').classList.add('show');
 });
 
 document.getElementById('actions-modal').addEventListener('click', (e) => {
-const action = e.target.dataset.action;
-if (action) {
-document.getElementById('actions-modal').classList.remove('show');
-switch (action) {
-case 'search': doSearch(); break;
-case 'pray': pray(); break;
-case 'kick': kick(); break;
-case 'engrave': engrave(); break;
-case 'use-feature': useFeature(); break;
-case 'apply': {
-  const tool = player.inventory.find(i => i.type === 'tool' && i.equipped);
-  if (!tool) {
-    log('You must equip a tool first (use it from inventory).', 'damage');
-    return;
+  const action = e.target.dataset.action;
+  if (action) {
+    document.getElementById('actions-modal').classList.remove('show');
+    switch (action) {
+      case 'spellbook':
+        showSpellbookModal();
+        break;
+        
+      case 'search': 
+        doSearch(); 
+        break;
+        
+      case 'pray': 
+        pray(); 
+        break;
+        
+      case 'kick': 
+        kick(); 
+        break;
+        
+      case 'engrave': 
+        engrave(); 
+        break;
+        
+      case 'use-feature': 
+        useFeature(); 
+        break;
+        
+      case 'apply': {
+        const tool = player.inventory.find(i => i.type === 'tool' && i.equipped);
+        if (!tool) {
+          log('You must equip a tool first (use it from inventory).', 'damage');
+          return;
+        }
+        
+        currentActionContext = {
+          action: 'apply',
+          item: tool
+        };
+        
+        log(`Apply your ${getItemDisplayName(tool)} in which direction? (Use direction buttons)`, 'info');
+        updateStats();
+        break;
+      }
+      
+      case 'zap':
+        currentActionContext = {
+          action: 'look-zap',
+          item: null
+        };
+        log('Zap mode ON: Select a wand, then a direction.', 'info');
+        updateStats();
+        break;
+        
+      case 'disarm':
+        const adjacentTrap = traps.find(t =>
+          Math.abs(t.x - player.x) <= 1 &&
+          Math.abs(t.y - player.y) <= 1 &&
+          !t.hidden
+        );
+
+        if (adjacentTrap) {
+          currentActionContext = {
+            action: 'disarm'
+          };
+          log('Disarm which trap? (Choose direction)', 'info');
+        } else {
+          log('No visible traps nearby to disarm.', 'damage');
+        }
+        break;
+        
+      case 'rage':
+        if (!player.canRage) {
+          log('Only Barbarians can rage.', 'damage');
+          return;
+        }
+        if (player.rageTurns > 0) {
+          log('You are already enraged!', 'info');
+          return;
+        }
+        if (!safeSpendAP(AP_COSTS.RAGE, 'enter rage')) return;
+
+        player.rageTurns = 20;
+        log('PRIMAL FURY COURSES THROUGH YOU!', 'damage');
+        updateStats();
+        processTurn();
+        break;
+        
+      case 'look-throw':
+        const throwableItem = player.inventory.find(i =>
+          i.type === 'potion' || i.type === 'weapon' || i.type === 'scroll'
+        );
+        if (!throwableItem) {
+          log('You have nothing to throw!', 'damage');
+          return;
+        }
+        currentActionContext = {
+          action: 'look-throw',
+          item: throwableItem
+        };
+        player.isLooking = true;
+        player.lookCursor = {
+          x: player.x,
+          y: player.y
+        };
+        document.getElementById('look-btn').classList.add('action-mode');
+        log(`Throwing ${throwableItem.name}. Move cursor with direction keys, then click Activate to throw.`, 'info');
+        updateStats();
+        needsRedraw = true;
+        break;
+
+      case 'look-shoot':
+        if (!player.rangedWeapon || !player.rangedWeapon.equipped) {
+          log('You need to equip a bow first!', 'damage');
+          return;
+        }
+
+        const ammoType = player.rangedWeapon.ammoType || 'arrows';
+        const ammoResult = getAvailableAmmo(ammoType);
+
+        if (!ammoResult) {
+          log(`You have no ${ammoType}!`, 'damage');
+          return;
+        }
+
+        currentActionContext = {
+          action: 'look-shoot',
+          ammo: ammoResult
+        };
+        player.isLooking = true;
+        player.lookCursor = {
+          x: player.x,
+          y: player.y
+        };
+        document.getElementById('look-btn').classList.add('action-mode');
+        log(`Look-Shoot: Aiming ${getItemDisplayName(player.rangedWeapon)}. Move cursor with directions, then Activate to shoot.`, 'info');
+        updateStats();
+        updateActivateButton();
+        needsRedraw = true;
+        break;
+        
+      case 'close': 
+        cancelActionModes();
+        break;
+    }
   }
-  
-  currentActionContext = {
-    action: 'apply',
-    item: tool
-  };
-  
-  log(`Apply your ${getItemDisplayName(tool)} in which direction? (Use direction buttons)`, 'info');
-  updateStats();
-  break;
-}
-case 'zap':
-currentActionContext = {
-action: 'look-zap',
-item: null
-};
-log('Zap mode ON: Select a wand, then a direction.', 'info');
-updateStats();
-break;
-case 'disarm':
-const adjacentTrap = traps.find(t =>
-Math.abs(t.x - player.x) <= 1 &&
-Math.abs(t.y - player.y) <= 1 &&
-!t.hidden
-);
-
-if (adjacentTrap) {
-currentActionContext = {
-action: 'disarm'
-};
-log('Disarm which trap? (Choose direction)', 'info');
-} else {
-log('No visible traps nearby to disarm.', 'damage');
-}
-break;
-case 'rage':
-if (!player.canRage) {
-log('Only Barbarians can rage.', 'damage');
-return;
-}
-if (player.rageTurns > 0) {
-log('You are already enraged!', 'info');
-return;
-}
-if (!safeSpendAP(AP_COSTS.RAGE, 'enter rage')) return;
-
-player.rageTurns = 20;
-log('PRIMAL FURY COURSES THROUGH YOU!', 'damage');
-updateStats();
-processTurn();
-break;
-case 'look-throw':
-const throwableItem = player.inventory.find(i =>
-i.type === 'potion' || i.type === 'weapon' || i.type === 'scroll'
-);
-if (!throwableItem) {
-log('You have nothing to throw!', 'damage');
-return;
-}
-currentActionContext = {
-action: 'look-throw',
-item: throwableItem
-};
-player.isLooking = true;
-player.lookCursor = {
-x: player.x,
-y: player.y
-};
-document.getElementById('look-btn').classList.add('action-mode');
-log(`Throwing ${throwableItem.name}. Move cursor with direction keys, then click Activate to throw.`, 'info');
-updateStats();
-needsRedraw = true;
-break;
-
-case 'look-shoot':
-if (!player.rangedWeapon || !player.rangedWeapon.equipped) {
-log('You need to equip a bow first!', 'damage');
-return;
-}
-
-const ammoType = player.rangedWeapon.ammoType || 'arrows';
-const ammoResult = getAvailableAmmo(ammoType);
-
-if (!ammoResult) {
-log(`You have no ${ammoType}!`, 'damage');
-return;
-}
-
-currentActionContext = {
-action: 'look-shoot',
-ammo: ammoResult
-};
-player.isLooking = true;
-player.lookCursor = {
-x: player.x,
-y: player.y
-};
-document.getElementById('look-btn').classList.add('action-mode');
-log(`Look-Shoot: Aiming ${getItemDisplayName(player.rangedWeapon)}. Move cursor with directions, then Activate to shoot.`, 'info');
-updateStats();
-updateActivateButton();
-needsRedraw = true;
-break;
-case 'close': cancelActionModes(); // disable to preserve look-action context break;
-}
-}
 });
 
 document.getElementById('toggle-action').addEventListener('click', (e) => {
@@ -8945,7 +9905,27 @@ needsRedraw = true;
 document.getElementById('activate-btn').addEventListener('click', () => {
   if (!player) return;
 
-  // Handle Look-Mode actions FIRST
+if (currentActionContext) {
+    if (currentActionContext.action === 'cast-fireball') {
+      const spell = currentActionContext.spell;
+      executeFireball(spell, player.lookCursor.x, player.lookCursor.y);
+      cancelActionModes();
+      return;
+    }
+    
+    if (currentActionContext.action === 'cast-piercing-shot') {
+      const spell = currentActionContext.spell;
+      const dx = Math.sign(player.lookCursor.x - player.x);
+      const dy = Math.sign(player.lookCursor.y - player.y);
+      if (dx !== 0 || dy !== 0) {
+        executePiercingShot(spell, dx, dy);
+        cancelActionModes();
+        return;
+      }
+    }
+  }
+
+  // Handle Look-Mode actions
   if (player.isLooking && currentActionContext) {
 
     // Handle Look-Shoot
@@ -10030,7 +11010,57 @@ function destroyEnvironmental(env) {
   needsRedraw = true;
 }
 
+function showSpellbookModal() {
+  const modal = document.getElementById('spellbook-modal');
+  const spellList = document.getElementById('spell-list');
+  
+  spellList.innerHTML = '';
+  
+  if (!player.spells || player.spells.length === 0) {
+    spellList.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">No spells learned yet.</div>';
+  } else {
+    player.spells.forEach(spellKey => {
+      const spell = SPELL_TYPES[spellKey];
+      
+      const spellDiv = document.createElement('button');
+      spellDiv.className = 'modal-btn';
+      spellDiv.style.cssText = `
+        text-align: left;
+        padding: 10px;
+        background: ${player.ap >= spell.cost ? '#002200' : '#220000'};
+        opacity: ${player.ap >= spell.cost ? '1' : '0.5'};
+        cursor: ${player.ap >= spell.cost ? 'pointer' : 'not-allowed'};
+      `;
+      
+      spellDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="flex: 1;">
+            <div style="font-weight: bold; font-size: 14px;">${spell.name}</div>
+            <div style="font-size: 11px; color: #888; margin-top: 2px;">${spell.description}</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="color: #0af; font-weight: bold;">${spell.cost} AP</div>
+          </div>
+        </div>
+      `;
+      
+      spellDiv.addEventListener('click', () => {
+        if (player.ap >= spell.cost) {
+          modal.classList.remove('show');
+          castSpell(spellKey);
+        }
+      });
+      
+      spellList.appendChild(spellDiv);
+    });
+  }
+  
+  modal.classList.add('show');
+}
 
+document.getElementById('close-spellbook').addEventListener('click', () => {
+  document.getElementById('spellbook-modal').classList.remove('show');
+});
 
 document.addEventListener('DOMContentLoaded', () => {
 const title = document.querySelector('h1');
