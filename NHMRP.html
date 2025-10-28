@@ -519,44 +519,84 @@ transition: all 1s ease; /* Transition ALL properties (opacity, shadow, etc.) qu
 
     /* 5. CRT Overlay Styles (Uses Keyframes defined above, requires class="crt" on <body>) */
 
-    body.crt::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background:
-      repeating-linear-gradient(0deg, rgba(0,0,0,0.5) 0, rgba(0,0,0,0.15) 1px, transparent 2px),
-      radial-gradient(circle at 50% 50%, rgba(0,255,0,0.1), transparent 70%);
-      mix-blend-mode: overlay;
-      z-index: 5000;
-      display: block;
-      will-change: opacity;
-      -webkit-animation: scanFlicker 1.2s ease-in-out infinite;
-      animation: scanFlicker 1.2s ease-in-out infinite;
-    }
+    /* === 5. Enhanced CRT Overlay Styles === */
+/* Works the same way: body.crt applies the effect */
 
-    body.crt::after {
-      content: '';
-      position: fixed;
-      left: 0;
-      right: 0;
-      top: 0;
-      pointer-events: none;
-      height: 8px;
-      background: linear-gradient(
-      to bottom,
-      rgba(0, 255, 0, 0) 0%,
-      rgba(0, 255, 0, 0.5) 50%,
-      rgba(0, 255, 0, 0) 100%
-      );
-      box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
-      mix-blend-mode: screen;
-      z-index: 5001;
-      display: block;
-      will-change: transform;
- -webkit-animation: scanSweep 6s linear infinite;
-animation: scanSweep 6s linear infinite;
-    }
+body.crt::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.6) 0px,
+      rgba(0, 0, 0, 0.2) 1px,
+      transparent 2px
+    ),
+    radial-gradient(circle at 50% 50%, rgba(0,255,0,0.12) 0%, transparent 75%);
+  mix-blend-mode: overlay;
+  z-index: 5000;
+  will-change: opacity, filter;
+  animation:
+    crtFlicker 1.4s ease-in-out infinite,
+    crtPulse 3.5s ease-in-out infinite;
+  filter:
+    contrast(1.1)
+    brightness(1.05)
+    saturate(1.05);
+  opacity: 0.55;
+}
+
+body.crt::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  pointer-events: none;
+  height: 8px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 255, 0, 0) 0%,
+    rgba(0, 255, 0, 0.4) 50%,
+    rgba(0, 255, 0, 0) 100%
+  );
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+  mix-blend-mode: screen;
+  z-index: 5001;
+  will-change: transform, opacity;
+  animation:
+    scanSweep 6s linear infinite,
+    crtFlicker 1.2s ease-in-out infinite;
+}
+
+/* Subtle vignette curvature overlay */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    rgba(0,0,0,0) 55%,
+    rgba(0,0,0,0.25) 100%
+  );
+  mix-blend-mode: multiply;
+  z-index: 4999;
+}
+
+/* === Enhanced Keyframes === */
+@keyframes crtFlicker {
+  0%, 100%   { opacity: 0.55; filter: brightness(1.05); }
+  40%, 60%   { opacity: 0.58; filter: brightness(1.10); }
+  50%        { opacity: 0.62; filter: brightness(1.15); }
+}
+
+@keyframes crtPulse {
+  0%, 100% { filter: brightness(1.05) contrast(1.05); }
+  50%      { filter: brightness(1.12) contrast(1.10); }
+}
   </style>
 </head>
 <body class="crt">
@@ -846,25 +886,26 @@ return ZOOM_CONFIGS[zoomLevel].tileSize;
 }
 
 const AP_COSTS = {
-MOVE: 100,
-ATTACK: 100,
+MOVE: 50,
+ATTACK: 50,
 WAIT: 0,
-SEARCH: 200,
+SEARCH: 100,
 USE_ITEM: 50,
 THROW: 100,
 OPEN_DOOR: 50,
-BASH_DOOR: 250,
-KICK: 220,
-PRAY: 200,
-ENGRAVE: 300,
+BASH_DOOR: 150,
+KICK: 120,
+PRAY: 100,
+ENGRAVE: 150,
 ZAP: 100,
 APPLY: 200,
 RAGE: 100,
 SHOOT: 200,
 AUTO_SHOOT: 0,
-AUTO_ZAP: 0
+AUTO_ZAP: 0,
+RECHARGE: 100
 };
-//Must Fix this⬇️
+//TO-DO PROPER FORMULA PROGRESSION FOR XP⬇️
 const LEVEL_XP_REQUIREMENTS = [0, 25, 50, 75, 100, 125, 250, 450, 700, 1000, 1400, 1900, 2500, 3200, 4000];
 const EFFECT_TYPES = {
 identify: {
@@ -1041,8 +1082,15 @@ const DUNGEON_TYPES = [
     tileColors: {
       floor: '#0f0',
       wall: '#050'
+    },
+    // === NEW: TERRAIN CONFIGURATION ===
+    terrainConfig: {
+      allowedTerrains: ['gravel'],
+      terrainChance: 0.2,
+      patchCount: { min: 0, max: 2 }
     }
   },
+  
   {
     type: 'crypt',
     name: 'Ancient Crypt',
@@ -1060,8 +1108,17 @@ const DUNGEON_TYPES = [
     tileColors: {
       floor: '#888',
       wall: '#333'
+    },
+    // === NEW ===
+    terrainConfig: {
+      allowedTerrains: ['roughTerrain', 'web'],
+      terrainChance: 0.3,
+      patchCount: { min: 1, max: 3 },
+      webCount: { min: 3, max: 8 },
+      spiderChance: 0.7
     }
   },
+  
   {
     type: 'flooded',
     name: 'Flooded Halls',
@@ -1079,8 +1136,16 @@ const DUNGEON_TYPES = [
     tileColors: {
       floor: '#0af',
       wall: '#035'
+    },
+    // === NEW ===
+    terrainConfig: {
+      primaryTerrain: 'water',
+      guaranteedFloodedRooms: { min: 2, max: 4 },
+      waterBarrelCount: { min: 1, max: 3 },
+      poolCount: { min: 2, max: 4 }
     }
   },
+  
   {
     type: 'inferno',
     name: 'Infernal Chamber',
@@ -1090,7 +1155,7 @@ const DUNGEON_TYPES = [
       monsterSpawnMult: 1.1,
       itemSpawnMult: 0.7,
       trapSpawnMult: 0.8,
-      darkChance: 0.1, // Well lit by flames
+      darkChance: 0.1,
       roomCount: 16,
       forceMonsterTypes: ['dragon', 'elemental', 'imp'],
       fireHazards: true,
@@ -1099,8 +1164,17 @@ const DUNGEON_TYPES = [
     tileColors: {
       floor: '#f80',
       wall: '#820'
+    },
+    // === NEW ===
+    terrainConfig: {
+      primaryTerrain: 'lava',
+      guaranteedLavaRooms: { min: 1, max: 2 },
+      lavaEdges: true,
+      oilPatches: { min: 2, max: 4 },
+      oilBarrelCount: { min: 2, max: 5 }
     }
   },
+  
   {
     type: 'treasure',
     name: 'Treasure Vault',
@@ -1119,8 +1193,16 @@ const DUNGEON_TYPES = [
     tileColors: {
       floor: '#ff0',
       wall: '#880'
+    },
+    // === NEW ===
+    terrainConfig: {
+      allowedTerrains: ['gravel'],
+      terrainChance: 0.4,
+      acidTraps: true,
+      acidPoolCount: { min: 1, max: 2 }
     }
   },
+  
   {
     type: 'maze',
     name: 'Twisted Maze',
@@ -1138,8 +1220,15 @@ const DUNGEON_TYPES = [
     tileColors: {
       floor: '#0f0',
       wall: '#030'
+    },
+    // === NEW ===
+    terrainConfig: {
+      allowedTerrains: ['gravel', 'roughTerrain'],
+      terrainChance: 0.5,
+      patchCount: { min: 3, max: 6 }
     }
   },
+  
   {
     type: 'cathedral',
     name: 'Grand Cathedral',
@@ -1158,8 +1247,15 @@ const DUNGEON_TYPES = [
     tileColors: {
       floor: '#fff',
       wall: '#888'
+    },
+    // === NEW ===
+    terrainConfig: {
+      allowedTerrains: [],
+      cleanFloors: true, // No terrain obstacles
+      waterPools: { min: 1, max: 2 } // Holy water
     }
   },
+  
   {
     type: 'fungal',
     name: 'Fungal Grove',
@@ -1178,7 +1274,534 @@ const DUNGEON_TYPES = [
     tileColors: {
       floor: '#9c6',
       wall: '#460'
+    },
+    // === NEW ===
+    terrainConfig: {
+      primaryTerrain: 'slime',
+      slimePatches: { min: 3, max: 6 },
+      acidJars: { min: 2, max: 4 },
+      gasVents: true
     }
+  },
+  
+  // === NEW: ICE DUNGEON TYPE ===
+  {
+    type: 'frozen',
+    name: 'Frozen Caverns',
+    weight: 8,
+    description: 'Frigid ice and freezing winds',
+    modifiers: {
+      monsterSpawnMult: 0.9,
+      itemSpawnMult: 1.0,
+      trapSpawnMult: 0.8,
+      darkChance: 0.4,
+      roomCount: 16,
+      forceMonsterTypes: ['wolf', 'troll'],
+      coldDamage: true
+    },
+    tileColors: {
+      floor: '#0af',
+      wall: '#068'
+    },
+    terrainConfig: {
+      primaryTerrain: 'ice',
+      guaranteedIceRooms: { min: 2, max: 4 },
+      iceBlockCount: { min: 3, max: 8 },
+      icicleWalls: { min: 2, max: 5 }
+    }
+  }
+];
+
+const TERRAIN_TYPES = {
+  ice: { 
+    name: 'ice', 
+    glyph: '≈', 
+    color: '#0af', 
+    moveMod: 1.5, 
+    slippery: true, 
+    slidePushMultiplier: 2, 
+    meltsTo: 'shallowWater', 
+    fireResist: -50,
+    description: 'Slippery frozen surface'
+  },
+  
+  shallowWater: { 
+    name: 'shallow water', 
+    glyph: '≈', 
+    color: '#0af', 
+    moveMod: 0.7, 
+    apMult: 1.3, 
+    noise: true, 
+    passProjectiles: true, 
+    extinguishesFire: true,
+    description: 'Ankle-deep water'
+  },
+  
+  deepWater: { 
+    name: 'deep water', 
+    glyph: '≈', 
+    color: '#05a', 
+    blocks: true, 
+    requiresSwim: true, 
+    drown: 3, 
+    passProjectiles: true, 
+    extinguishesFire: true,
+    description: 'Too deep to wade'
+  },
+  
+  slime: { 
+    name: 'slime', 
+    glyph: '≈', 
+    color: '#9f9', 
+    moveMod: 0.4, 
+    apMult: 2.0, 
+    corrosion: 0.15, 
+    spread: true,
+    description: 'Sticky and corrosive'
+  },
+  
+  lava: { 
+    name: 'lava', 
+    glyph: '≈', 
+    color: '#f80', 
+    blocks: true, 
+    dmgPerTurn: 10, 
+    lights: true, 
+    radius: 3, 
+    destroysProjectiles: true, 
+    ignites: true,
+    description: 'Molten rock'
+  },
+  
+  gravel: { 
+    name: 'gravel', 
+    glyph: '∴', 
+    color: '#888', 
+    moveMod: 0.8, 
+    noise: true, 
+    crunch: true,
+    description: 'Loose stones'
+  },
+  
+  oil: {
+    name: 'oil slick', 
+    glyph: '≈', 
+    color: '#640',
+    moveMod: 0.6, 
+    flammable: true, 
+    igniteChance: 0.8,
+    burnDuration: 5,
+    description: 'Flammable oil'
+  },
+  
+  roughTerrain: {
+    name: 'rough terrain', 
+    glyph: '≋', 
+    color: '#964',
+    moveMod: 0.5, 
+    apMult: 1.5,
+    description: 'Difficult footing'
+  },
+  
+  acid: {
+    name: 'acid pool',
+    glyph: '≈',
+    color: '#0f0',
+    blocks: true,
+    dmgPerTurn: 5,
+    corrosion: 1.0,
+    passProjectiles: true,
+    description: 'Corrosive acid'
+  }
+};
+
+const LIQUID_FEATURE_TYPES = [
+  {
+    type: 'water_pool',
+    glyph: '≈',
+    color: '#0af',
+    spawnChance: 0.3,
+    minRooms: 2,
+    unique: false,
+    depth: 1,
+    liquidType: 'water',
+    canDrink: true,
+    canDip: true
+  },
+  
+  {
+    type: 'lava_pool',
+    glyph: '≈',
+    color: '#f80',
+    spawnChance: 0.05,
+    minRooms: 4,
+    unique: false,
+    depth: 10,
+    liquidType: 'lava',
+    damage: 10,
+    lightsArea: true,
+    lightRadius: 3
+  },
+  
+  {
+    type: 'acid_pool',
+    glyph: '≈',
+    color: '#0f0',
+    spawnChance: 0.05,
+    minRooms: 3,
+    unique: false,
+    depth: 5,
+    liquidType: 'acid',
+    damage: 5,
+    corrosive: true
+  },
+  
+  {
+    type: 'oil_pool',
+    glyph: '≈',
+    color: '#640',
+    spawnChance: 0.1,
+    minRooms: 3,
+    unique: false,
+    depth: 3,
+    liquidType: 'oil',
+    flammable: true
+  }
+];
+
+const WEB_FEATURE_TYPE = {
+  type: 'web',
+  glyph: '"',
+  color: '#eee',
+  spawnChance: 0.15,
+  minRooms: 2,
+  unique: false,
+  depth: 2,
+  trapChance: 0.4,
+  paralyzeTurns: 2,
+  burnEasily: true,
+  breakable: true,
+  hp: 3,
+  requiresMonster: 'spider'
+};
+
+const LIQUID_ENVIRONMENTAL_TYPES = [
+  {
+    glyph: '⌸',
+    name: 'water barrel',
+    color: '#0af',
+    type: 'container',
+    hp: 10,
+    maxHp: 10,
+    depth: 1,
+    canOpen: true,
+    breakable: true,
+    pushable: true,
+    spillsLiquid: 'shallowWater',
+    spillRadius: 2,
+    extinguishesNearbyFire: true,
+    lootTable: ['food', 'potion'],
+    lootCount: [1, 2]
+  },
+  
+  {
+    glyph: '⌸',
+    name: 'oil barrel',
+    color: '#640',
+    type: 'explosive',
+    hp: 8,
+    maxHp: 8,
+    depth: 3,
+    breakable: true,
+    pushable: true,
+    spillsLiquid: 'oil',
+    spillRadius: 2,
+    flammable: true,
+    explosionOnFire: true,
+    explosionDamage: [3, 8],
+    explosionRadius: 3
+  },
+  
+  {
+    glyph: '⌸',
+    name: 'acid jar',
+    color: '#0f0',
+    type: 'hazard',
+    hp: 5,
+    maxHp: 5,
+    depth: 5,
+    breakable: true,
+    pushable: false,
+    spillsLiquid: 'acid',
+    spillRadius: 1,
+    bumpDamage: 3,
+    damageMessage: 'Acid splashes on you!'
+  }
+];
+
+const ICE_ENVIRONMENTAL_TYPES = [
+  {
+    glyph: '▢',
+    name: 'ice block',
+    color: '#0af',
+    type: 'ice_block',
+    hp: 8,
+    maxHp: 8,
+    depth: 2,
+    pushable: true,
+    breakable: true,
+    slideMultiplier: 3,
+    meltsInFire: true,
+    transparent: true
+  },
+  
+  {
+    glyph: '╬',
+    name: 'icicle wall',
+    color: '#0cf',
+    type: 'barrier',
+    hp: 15,
+    maxHp: 15,
+    depth: 3,
+    breakable: true,
+    sharpDamage: 2,
+    meltsInFire: true,
+    bumpDamage: 1,
+    damageMessage: 'The sharp icicles cut you!'
+  }
+];
+
+const ENVIRONMENTAL_TYPES = [
+  // CONTAINERS (openable, contain loot)
+  {
+    glyph: '▢',
+    name: 'wooden chest',
+    color: '#8B4513',
+    type: 'container',
+    hp: 15,
+    maxHp: 15,
+    depth: 1,
+    canOpen: true,
+    isOpen: false,
+    lootTable: ['weapon', 'armor', 'potion', 'gold'],
+    lootCount: [2, 4],
+    breakable: true,
+    pushable: false
+  },
+  {
+    glyph: '▢',
+    name: 'iron chest',
+    color: '#888',
+    type: 'container',
+    hp: 30,
+    maxHp: 30,
+    depth: 5,
+    canOpen: true,
+    isOpen: false,
+    locked: true,
+    lootTable: ['weapon', 'armor', 'ring', 'amulet', 'gold'],
+    lootCount: [3, 6],
+    breakable: true,
+    pushable: false
+  },
+  {
+    glyph: '⌸',
+    name: 'barrel',
+    color: '#A0522D',
+    type: 'container',
+    hp: 8,
+    maxHp: 8,
+    depth: 1,
+    canOpen: true,
+    isOpen: false,
+    lootTable: ['food', 'potion', 'gold'],
+    lootCount: [1, 2],
+    breakable: true,
+    pushable: true
+  },
+  {
+    glyph: '⌁',
+    name: 'bookshelf',
+    color: '#654321',
+    type: 'container',
+    hp: 12,
+    maxHp: 12,
+    depth: 2,
+    canOpen: true,
+    isOpen: false,
+    lootTable: ['scroll', 'scroll', 'scroll', 'potion'],
+    lootCount: [2, 3],
+    breakable: true,
+    pushable: false
+  },
+  
+  // BARRIERS (blocking, no loot)
+  {
+    glyph: '╬',
+    name: 'wooden barrier',
+    color: '#8B7355',
+    type: 'barrier',
+    hp: 20,
+    maxHp: 20,
+    depth: 1,
+    canOpen: false,
+    breakable: true,
+    pushable: true
+  },
+  {
+    glyph: '╬',
+    name: 'iron barrier',
+    color: '#A9A9A9',
+    type: 'barrier',
+    hp: 50,
+    maxHp: 50,
+    depth: 5,
+    canOpen: false,
+    breakable: true,
+    pushable: false
+  },
+  
+  // HAZARDS (damage on bump)
+  {
+    glyph: '╬',
+    name: 'spiked barrier',
+    color: '#DC143C',
+    type: 'hazard',
+    hp: 25,
+    maxHp: 25,
+    depth: 3,
+    canOpen: false,
+    breakable: true,
+    pushable: false,
+    bumpDamage: 3,
+    damageMessage: 'You impale yourself on the spikes!'
+  },
+  {
+    glyph: '※',
+    name: 'thorny vines',
+    color: '#228B22',
+    type: 'hazard',
+    hp: 15,
+    maxHp: 15,
+    depth: 2,
+    canOpen: false,
+    breakable: true,
+    pushable: false,
+    bumpDamage: 2,
+    damageMessage: 'The thorns tear at your flesh!'
+  },
+  
+  // SPECIAL (unique behaviors)
+  {
+    glyph: '⚗',
+    name: 'explosive barrel',
+    color: '#FF4500',
+    type: 'explosive',
+    hp: 5,
+    maxHp: 5,
+    depth: 4,
+    canOpen: false,
+    breakable: true,
+    pushable: true,
+    explosionRadius: 2,
+    explosionDamage: [2, 6]
+  }
+];
+
+const FEATURE_TYPES = [
+    {
+        type: 'altar',
+        glyph: '_',
+        color: '#fff',
+        spawnChance: 0.8,  // 80% chance if rooms available
+        minRooms: 3,       // Need at least 3 rooms
+        unique: true,      // Only one per level
+        depth: 1
+    },
+    {
+        type: 'fountain',
+        glyph: '{',
+        color: '#0af',
+        spawnChance: 0.8,
+        minRooms: 3,
+        unique: true,
+        depth: 1
+    },
+    {
+        type: 'sink',
+        glyph: '≈',
+        color: '#888',
+        spawnChance: 0.6,
+        minRooms: 4,
+        unique: true,
+        depth: 1,
+        offset: { dx: 1, dy: 0 }  // Spawn offset from room center
+    },
+    {
+        type: 'shop',
+        glyph: '€',
+        color: '#ff0',
+        spawnChance: 0.7,
+        minRooms: 5,
+        unique: true,
+        depth: 1,
+        requiresInventory: true,
+        shopkeeperAngry: false
+    },
+    {
+        type: 'enchanter',
+        glyph: '✦',
+        color: '#0af',
+        spawnChance: 0.15,
+        minRooms: 4,
+        unique: true,
+        depth: 2
+    },
+    {
+        type: 'door',
+        glyph: '+',
+        color: '#f80',
+        spawnChance: 0.15,  // 15% chance per corridor tile
+        unique: false,
+        depth: 1,
+        requiresCorridor: true,
+        open: false,
+        locked: false,
+        discovered: false,
+        lockedChance: 0.1
+    }
+];
+
+// ENVIRONMENTAL OBJECTS (already in your code, just expand)
+const LIQUID_CONTAINERS = [
+  {
+    glyph: '⌸',
+    name: 'water barrel',
+    color: '#0af',
+    type: 'container',
+    hp: 10,
+    maxHp: 10,
+    depth: 1,
+    breakable: true,
+    spillsLiquid: 'shallowWater',
+    spillRadius: 2,
+    extinguishesNearbyFire: true
+  },
+  
+  {
+    glyph: '⌸',
+    name: 'oil barrel',
+    color: '#640',
+    type: 'explosive',
+    hp: 8,
+    maxHp: 8,
+    depth: 3,
+    breakable: true,
+    spillsLiquid: 'oil',
+    flammable: true,
+    explosionOnFire: true,
+    explosionDamage: [3, 8],
+    explosionRadius: 3
   }
 ];
 
@@ -2476,21 +3099,24 @@ glyph: '^',
 name: 'spike trap',
 color: '#f00',
 damage: 5,
-hidden: true
+hidden: true,
+type: 'static'
 },
 {
 glyph: '^',
 name: 'teleporter',
 color: '#0ff',
 teleport: true,
-hidden: true
+hidden: true,
+type: 'static'
 },
 {
 glyph: '^',
 name: 'poison trap',
 color: '#0f0',
 poison: 3,
-hidden: true
+hidden: true,
+type: 'static'
 },
 {
 glyph: '^',
@@ -2499,7 +3125,8 @@ color: '#aaa',
 hasDart: true,
 ap: 0,
 apRegen: 50,
-maxAP: 100
+maxAP: 100,
+type:'ranged'
 },
 {
 glyph: '^',
@@ -2508,209 +3135,9 @@ color: '#888',
 hasBoulder: true,
 ap: 0,
 apRegen: 10,
-maxAP: 100
+maxAP: 100,
+type: 'ranged'
 }];
-
-const ENVIRONMENTAL_TYPES = [
-  // CONTAINERS (openable, contain loot)
-  {
-    glyph: '▢',
-    name: 'wooden chest',
-    color: '#8B4513',
-    type: 'container',
-    hp: 15,
-    maxHp: 15,
-    depth: 1,
-    canOpen: true,
-    isOpen: false,
-    lootTable: ['weapon', 'armor', 'potion', 'gold'],
-    lootCount: [2, 4],
-    breakable: true,
-    pushable: false
-  },
-  {
-    glyph: '▢',
-    name: 'iron chest',
-    color: '#888',
-    type: 'container',
-    hp: 30,
-    maxHp: 30,
-    depth: 5,
-    canOpen: true,
-    isOpen: false,
-    locked: true,
-    lootTable: ['weapon', 'armor', 'ring', 'amulet', 'gold'],
-    lootCount: [3, 6],
-    breakable: true,
-    pushable: false
-  },
-  {
-    glyph: '⌸',
-    name: 'barrel',
-    color: '#A0522D',
-    type: 'container',
-    hp: 8,
-    maxHp: 8,
-    depth: 1,
-    canOpen: true,
-    isOpen: false,
-    lootTable: ['food', 'potion', 'gold'],
-    lootCount: [1, 2],
-    breakable: true,
-    pushable: true
-  },
-  {
-    glyph: '⌁',
-    name: 'bookshelf',
-    color: '#654321',
-    type: 'container',
-    hp: 12,
-    maxHp: 12,
-    depth: 2,
-    canOpen: true,
-    isOpen: false,
-    lootTable: ['scroll', 'scroll', 'scroll', 'potion'],
-    lootCount: [2, 3],
-    breakable: true,
-    pushable: false
-  },
-  
-  // BARRIERS (blocking, no loot)
-  {
-    glyph: '╬',
-    name: 'wooden barrier',
-    color: '#8B7355',
-    type: 'barrier',
-    hp: 20,
-    maxHp: 20,
-    depth: 1,
-    canOpen: false,
-    breakable: true,
-    pushable: true
-  },
-  {
-    glyph: '╬',
-    name: 'iron barrier',
-    color: '#A9A9A9',
-    type: 'barrier',
-    hp: 50,
-    maxHp: 50,
-    depth: 5,
-    canOpen: false,
-    breakable: true,
-    pushable: false
-  },
-  
-  // HAZARDS (damage on bump)
-  {
-    glyph: '╬',
-    name: 'spiked barrier',
-    color: '#DC143C',
-    type: 'hazard',
-    hp: 25,
-    maxHp: 25,
-    depth: 3,
-    canOpen: false,
-    breakable: true,
-    pushable: false,
-    bumpDamage: 3,
-    damageMessage: 'You impale yourself on the spikes!'
-  },
-  {
-    glyph: '※',
-    name: 'thorny vines',
-    color: '#228B22',
-    type: 'hazard',
-    hp: 15,
-    maxHp: 15,
-    depth: 2,
-    canOpen: false,
-    breakable: true,
-    pushable: false,
-    bumpDamage: 2,
-    damageMessage: 'The thorns tear at your flesh!'
-  },
-  
-  // SPECIAL (unique behaviors)
-  {
-    glyph: '⚗',
-    name: 'explosive barrel',
-    color: '#FF4500',
-    type: 'explosive',
-    hp: 5,
-    maxHp: 5,
-    depth: 4,
-    canOpen: false,
-    breakable: true,
-    pushable: true,
-    explosionRadius: 2,
-    explosionDamage: [2, 6]
-  }
-];
-
-const FEATURE_TYPES = [
-    {
-        type: 'altar',
-        glyph: '_',
-        color: '#fff',
-        spawnChance: 0.8,  // 80% chance if rooms available
-        minRooms: 3,       // Need at least 3 rooms
-        unique: true,      // Only one per level
-        depth: 1
-    },
-    {
-        type: 'fountain',
-        glyph: '{',
-        color: '#0af',
-        spawnChance: 0.8,
-        minRooms: 3,
-        unique: true,
-        depth: 1
-    },
-    {
-        type: 'sink',
-        glyph: '≈',
-        color: '#888',
-        spawnChance: 0.6,
-        minRooms: 4,
-        unique: true,
-        depth: 1,
-        offset: { dx: 1, dy: 0 }  // Spawn offset from room center
-    },
-    {
-        type: 'shop',
-        glyph: '€',
-        color: '#ff0',
-        spawnChance: 0.7,
-        minRooms: 5,
-        unique: true,
-        depth: 1,
-        requiresInventory: true,
-        shopkeeperAngry: false
-    },
-    {
-        type: 'enchanter',
-        glyph: '✦',
-        color: '#0af',
-        spawnChance: 0.15,
-        minRooms: 4,
-        unique: true,
-        depth: 2
-    },
-    {
-        type: 'door',
-        glyph: '+',
-        color: '#f80',
-        spawnChance: 0.15,  // 15% chance per corridor tile
-        unique: false,
-        depth: 1,
-        requiresCorridor: true,
-        open: false,
-        locked: false,
-        discovered: false,
-        lockedChance: 0.1
-    }
-];
 
 const DEFAULT_INTRINSICS = {
 fireResist: false,
@@ -3357,6 +3784,93 @@ function isWalkable(x, y) {
   return tile === '.' || tile === '\'' || tile === '>' || tile === '_' || tile === '{' || tile === '≈';
 }
 
+function getTerrain(x, y) {
+  if (!dungeon.terrainMap || !dungeon.terrainMap[y] || typeof dungeon.terrainMap[y][x] === 'undefined') {
+    return null;
+  }
+  return dungeon.terrainMap[y][x];
+}
+
+function setTerrain(x, y, type) {
+  if (x < 0 || y < 0 || x >= WIDTH || y >= HEIGHT) return;
+
+  if (!dungeon.terrainMap) {
+    dungeon.terrainMap = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(null));
+  }
+
+  if (!dungeon.terrainMap[y]) return;
+
+  dungeon.terrainMap[y][x] = type;
+  needsRedraw = true;
+}
+
+function clearTerrain(x, y) {
+  if (!dungeon.terrainMap || !dungeon.terrainMap[y] || typeof dungeon.terrainMap[y][x] === 'undefined') return;
+
+  dungeon.terrainMap[y][x] = null;
+  needsRedraw = true;
+}
+
+function spreadTerrain(x, y, terrainType, radius, density = 0.6) {
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const dist = Math.hypot(dx, dy);
+      if (dist > radius) continue;
+      if (Math.random() > density) continue;
+
+      const nx = x + dx;
+      const ny = y + dy;
+
+      if (nx < 0 || ny < 0 || nx >= WIDTH || ny >= HEIGHT) continue;
+      if (!dungeon.tiles[ny] || typeof dungeon.tiles[ny][nx] === 'undefined') continue; // ✅ bounds safety
+      if (dungeon.tiles[ny][nx] !== '.') continue;
+
+      setTerrain(nx, ny, terrainType);
+    }
+  }
+}
+
+function dimColor(color) {
+  return color.replace(/[0-9a-f]/gi, c => {
+    const val = parseInt(c, 16);
+    return Math.floor(val / 3).toString(16);
+  });
+}
+
+function applyTerrainDamage(entity, terrain) {
+  if (!terrain.dmgPerTurn) return;
+  
+  let damage = terrain.dmgPerTurn;
+  
+  // Fire resistance
+  if ((terrain.name === 'lava' || terrain.ignites) && entity.intrinsics?.fireResist) {
+    damage = Math.floor(damage / 2);
+    if (entity === player) {
+      log('You resist the heat!', 'info');
+    }
+  }
+  
+  // Acid resistance
+  if (terrain.name === 'acid pool' && entity.intrinsics?.poisonResist) {
+    damage = Math.floor(damage / 2);
+    if (entity === player) {
+      log('You resist the acid!', 'info');
+    }
+  }
+  
+  // Apply damage
+  if (entity === player) {
+    takeDamage(damage);
+    log(`The ${terrain.name} burns you!`, 'damage');
+  } else {
+    entity.hp -= damage;
+    if (entity.hp <= 0) {
+      log(`${entity.name} is consumed by the ${terrain.name}!`, 'death');
+      handleEntityDeath(player, entity);
+    }
+  }
+}
+
 function shuffleArray(array) {
 for (let i = array.length - 1; i > 0; i--) {
 const j = Math.floor(Math.random() * (i + 1));
@@ -3387,146 +3901,658 @@ log('Item appearances have been shuffled for this run!',
 }
 
 function generateDungeon(w, h) {
-    // Select dungeon type based on current stairs status or weighted random
-    let selectedType;
+  // Select dungeon type based on current stairs status or weighted random
+  let selectedType;
+  
+  const stairsItem = items.find(i => i.isStairs);
+  if (stairsItem) {
+    if (stairsItem.status === 'Blessed') {
+      // Blessed stairs lead to beneficial dungeons
+      const beneficialTypes = DUNGEON_TYPES.filter(t => 
+        t.type === 'treasure' || t.type === 'cathedral' || t.type === 'normal'
+      );
+      selectedType = beneficialTypes[Math.floor(Math.random() * beneficialTypes.length)];
+      log('The blessed stairs shimmer with promise...', 'pickup');
+    } else if (stairsItem.status === 'Cursed') {
+      // Cursed stairs lead to dangerous dungeons
+      const dangerousTypes = DUNGEON_TYPES.filter(t => 
+        t.type === 'crypt' || t.type === 'inferno' || t.type === 'maze'
+      );
+      selectedType = dangerousTypes[Math.floor(Math.random() * dangerousTypes.length)];
+      log('The cursed stairs fill you with dread...', 'damage');
+    } else {
+      // Normal stairs use weighted random
+      selectedType = selectWeightedDungeonType();
+    currentDungeonType = selectedType;
+    }
+  } else {
+    // First level or no stairs
+    selectedType = DUNGEON_TYPES[0]; // Normal
+  }
+  
+  currentDungeonType = selectedType;
+  
+  let tiles = Array(h).fill().map(() => Array(w).fill('#'));
+  let rooms = [];
+  let features = [];
+  let engravings = [];
+  
+  // Apply dungeon type modifiers
+  const mods = selectedType.modifiers;
+  dungeon.isDarkLevel = Math.random() < (mods.darkChance || 0.3);
+  
+  if (dungeon.isDarkLevel) log('It is very dark here...', 'damage');
+  log(`You enter ${selectedType.name}. ${selectedType.description}`, 'info');
+  
+  // Generate rooms with type-specific modifications
+  const roomCount = mods.roomCount || 20;
+  const minRoomSize = mods.largeRooms ? 7 : 5;
+  const maxRoomSize = mods.largeRooms ? 12 : (minRoomSize + 5);
+  
+  for (let i = 0; i < roomCount; i++) {
+      let rw = Math.floor(Math.random() * (maxRoomSize - minRoomSize)) + minRoomSize;
+      let rh = Math.floor(Math.random() * 4) + 4;
+      let rx = Math.floor(Math.random() * (w - rw - 2)) + 1;
+      let ry = Math.floor(Math.random() * (h - rh - 2)) + 1;
+      let overlap = rooms.some(r => rx < r.x + r.w + 1 && rx + rw + 1 > r.x && ry < r.y + r.h + 1 && ry + rh + 1 > r.y);
+      if (!overlap) {
+          for (let y = ry; y < ry + rh; y++) 
+              for (let x = rx; x < rx + rw; x++) 
+                  tiles[y][x] = '.';
+          rooms.push({
+              x: rx, y: ry, w: rw, h: rh, 
+              cx: Math.floor(rx + rw/2), cy: Math.floor(ry + rh/2)
+          });
+      }
+  }
+
+  // Generate vault with type-specific behavior
+  if (Math.random() < 0.15 || mods.guaranteedVault) {
+      generateVault(tiles, rooms);
+  }
+
+  // Connect rooms with corridors
+  rooms.sort((a, b) => a.x - b.x);
+  for (let i = 0; i < rooms.length - 1; i++) {
+      let x1 = rooms[i].cx, y1 = rooms[i].cy;
+      let x2 = rooms[i+1].cx, y2 = rooms[i+1].cy;
+      let hx = x1, hy = y1;
+      while (hx !== x2 || hy !== y2) {
+          if (Math.abs(x2 - hx) > Math.abs(y2 - hy) && hx !== x2) 
+              hx += Math.sign(x2 - hx);
+          else if (hy !== y2) 
+              hy += Math.sign(y2 - hy);
+          
+          if (tiles[hy]?.[hx] === '#') {
+              const doorType = FEATURE_TYPES.find(f => f.type === 'door');
+              const isAdjacentToRoom = tiles[hy-1]?.[hx] === '.' || tiles[hy+1]?.[hx] === '.' || 
+                                       tiles[hy][hx-1] === '.' || tiles[hy][hx+1] === '.';
+              
+              if (doorType && isAdjacentToRoom && Math.random() < doorType.spawnChance) {
+                  tiles[hy][hx] = doorType.glyph;
+                  features.push({
+                      x: hx, y: hy, type: doorType.type,
+                      glyph: doorType.glyph, color: doorType.color,
+                      open: false,
+                      locked: Math.random() < (doorType.lockedChance || 0.1),
+                      discovered: false
+                  });
+              } else {
+                  tiles[hy][hx] = '.';
+              }
+          }
+      }
+  }
+
+  // Spawn type-specific hazards
+  if (mods.fireHazards) {
+      spawnFireHazards(tiles, rooms, features);
+  }
+  
+  if (mods.waterFeatures) {
+      spawnWaterFeatures(tiles, rooms, features);
+  }
+  
+  if (mods.gasHazards) {
+      spawnGasHazards(tiles, rooms, features);
+  }
+  
+  // Guarantee altar in cathedral
+  if (mods.guaranteedAltar) {
+      const altarType = FEATURE_TYPES.find(f => f.type === 'altar');
+      if (altarType && rooms.length > 0) {
+          const room = rooms[Math.floor(rooms.length / 2)];
+          features.push({
+              x: room.cx,
+              y: room.cy,
+              type: 'altar',
+              glyph: altarType.glyph,
+              color: altarType.color
+          });
+          tiles[room.cy][room.cx] = altarType.glyph;
+      }
+  }
+
+  spawnDungeonFeatures(tiles, rooms, features);
+
+  dungeon.rooms = rooms;
+  dungeon.features = features;
+  dungeon.engravings = engravings;
+  dungeon.type = selectedType;
+  generateTerrainLayers();
+  return { tiles, width: w, height: h, rooms, features, engravings };
+
+  return { tiles, width: w, height: h, rooms, features, engravings };
+}
+
+function generateTerrainLayers() {
+dungeon.terrainMap = Array(HEIGHT).fill().map(() => Array(WIDTH).fill(null));
+
+const dungeonType = currentDungeonType || DUNGEON_TYPES[0];
+const config = dungeonType.terrainConfig;
+
+if (!config) {
+  log(`No terrain configuration for ${dungeonType.name}`, 'info');
+  return;
+}
+
+log(`Generating terrain for: ${dungeonType.name}`, 'info');
+
+// === PRIMARY TERRAIN (type-specific major features) ===
+if (config.primaryTerrain === 'water') {
+  generateFloodedRooms(config.guaranteedFloodedRooms);
+  spawnWaterBarrels(config.waterBarrelCount);
+  spawnLiquidPools('water_pool', config.poolCount);
+}
+
+if (config.primaryTerrain === 'lava') {
+  generateLavaRooms(config.guaranteedLavaRooms, config.lavaEdges);
+  generateOilPatches(config.oilPatches);
+  spawnOilBarrels(config.oilBarrelCount);
+}
+
+if (config.primaryTerrain === 'ice') {
+  generateIceRooms(config.guaranteedIceRooms);
+  spawnIceBlocks(config.iceBlockCount);
+  spawnIcicleWalls(config.icicleWalls);
+}
+
+if (config.primaryTerrain === 'slime') {
+  generateSlimePatches(config.slimePatches);
+  spawnAcidJars(config.acidJars);
+}
+
+// === SECONDARY TERRAIN (allowed terrain types) ===
+if (config.allowedTerrains && config.allowedTerrains.length > 0) {
+  const patchCount = config.patchCount 
+    ? rollDice(1, config.patchCount.max - config.patchCount.min + 1, config.patchCount.min - 1)
+    : 1;
+  
+  for (let i = 0; i < patchCount; i++) {
+    const terrainType = config.allowedTerrains[Math.floor(Math.random() * config.allowedTerrains.length)];
     
-    const stairsItem = items.find(i => i.isStairs);
-    if (stairsItem) {
-      if (stairsItem.status === 'Blessed') {
-        // Blessed stairs lead to beneficial dungeons
-        const beneficialTypes = DUNGEON_TYPES.filter(t => 
-          t.type === 'treasure' || t.type === 'cathedral' || t.type === 'normal'
-        );
-        selectedType = beneficialTypes[Math.floor(Math.random() * beneficialTypes.length)];
-        log('The blessed stairs shimmer with promise...', 'pickup');
-      } else if (stairsItem.status === 'Cursed') {
-        // Cursed stairs lead to dangerous dungeons
-        const dangerousTypes = DUNGEON_TYPES.filter(t => 
-          t.type === 'crypt' || t.type === 'inferno' || t.type === 'maze'
-        );
-        selectedType = dangerousTypes[Math.floor(Math.random() * dangerousTypes.length)];
-        log('The cursed stairs fill you with dread...', 'damage');
-      } else {
-        // Normal stairs use weighted random
-        selectedType = selectWeightedDungeonType();
+    if (Math.random() < (config.terrainChance || 0.3)) {
+      generateTerrainPatch(terrainType);
+    }
+  }
+}
+
+// === WEBS (crypt-specific) ===
+if (config.webCount) {
+  const webCount = rollDice(1, config.webCount.max - config.webCount.min + 1, config.webCount.min - 1);
+  generateSpiderWebs(webCount, config.spiderChance || 0.5);
+}
+
+// === WATER POOLS (cathedral-specific) ===
+if (config.waterPools) {
+  const poolCount = rollDice(1, config.waterPools.max - config.waterPools.min + 1, config.waterPools.min - 1);
+  spawnLiquidPools('water_pool', { min: poolCount, max: poolCount });
+}
+
+// === ACID POOLS (treasure vault traps) ===
+if (config.acidTraps && config.acidPoolCount) {
+  const acidCount = rollDice(1, config.acidPoolCount.max - config.acidPoolCount.min + 1, config.acidPoolCount.min - 1);
+  spawnLiquidPools('acid_pool', { min: acidCount, max: acidCount });
+}
+
+// === CLEAN FLOORS (cathedral) ===
+if (config.cleanFloors) {
+  // Don't generate any terrain obstacles
+  log('Pristine floors maintained.', 'info');
+}
+}
+
+// === TERRAIN PATCH GENERATOR ===
+function generateTerrainPatch(terrainTypeName) {
+  const terrainType = TERRAIN_TYPES[terrainTypeName];
+  if (!terrainType) return;
+  
+  const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+  if (!room || room.isVault) return;
+  
+  const centerX = room.x + Math.floor(Math.random() * room.w);
+  const centerY = room.y + Math.floor(Math.random() * room.h);
+  
+  const radius = terrainTypeName === 'gravel' ? 3 : 2;
+  const density = terrainTypeName === 'roughTerrain' ? 0.7 : 0.6;
+  
+  spreadTerrain(centerX, centerY, terrainType, radius, density);
+}
+
+function generateIceCave() {
+  const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+  if (!room || room.isVault) return;
+  
+  // Fill room with ice floor
+  for (let y = room.y; y < room.y + room.h; y++) {
+    for (let x = room.x; x < room.x + room.w; x++) {
+      if (dungeon.tiles[y][x] === '.') {
+        setTerrain(x, y, TERRAIN_TYPES.ice);
+      }
+    }
+  }
+  
+  // Add ice blocks
+  const iceBlockCount = 2 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < iceBlockCount; i++) {
+    const pos = findWalkable(room);
+    const iceBlock = ICE_ENVIRONMENTAL_TYPES.find(t => t.name === 'ice block');
+    
+    if (iceBlock && !environmentals.some(e => e.x === pos.x && e.y === pos.y)) {
+      environmentals.push({
+        ...iceBlock,
+        x: pos.x,
+        y: pos.y,
+        hp: iceBlock.hp,
+        maxHp: iceBlock.maxHp
+      });
+    }
+  }
+  
+  log('You enter a frozen chamber...', 'info');
+}
+
+function generateIceRooms(config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room || room.isVault) continue;
+    
+    // Fill entire room with ice
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (dungeon.tiles[y][x] === '.') {
+          setTerrain(x, y, TERRAIN_TYPES.ice);
+        }
+      }
+    }
+  }
+  
+  log('Your breath mists in the freezing air...', 'info');
+}
+
+function spawnIceBlocks(config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room) continue;
+    
+    const pos = findWalkable(room);
+    const iceBlock = ICE_ENVIRONMENTAL_TYPES.find(t => t.name === 'ice block');
+    
+    if (iceBlock && !environmentals.some(e => e.x === pos.x && e.y === pos.y)) {
+      environmentals.push({
+        ...iceBlock,
+        x: pos.x,
+        y: pos.y,
+        hp: iceBlock.hp,
+        maxHp: iceBlock.maxHp
+      });
+    }
+  }
+}
+
+function spawnIcicleWalls(config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room) continue;
+    
+    const pos = findWalkable(room);
+    const icicleWall = ICE_ENVIRONMENTAL_TYPES.find(t => t.name === 'icicle wall');
+    
+    if (icicleWall && !environmentals.some(e => e.x === pos.x && e.y === pos.y)) {
+      environmentals.push({
+        ...icicleWall,
+        x: pos.x,
+        y: pos.y,
+        hp: icicleWall.hp,
+        maxHp: icicleWall.maxHp
+      });
+    }
+  }
+}
+
+function generateFloodedRooms(config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room || room.isVault) continue;
+    
+    const centerX = room.cx;
+    const centerY = room.cy;
+    
+    for (let y = room.y; y < room.y + room.h; y++) {
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (dungeon.tiles[y][x] === '.') {
+          const dist = Math.hypot(x - centerX, y - centerY);
+          
+          if (dist < 2) {
+            setTerrain(x, y, TERRAIN_TYPES.deepWater);
+          } else if (dist < 4) {
+            setTerrain(x, y, TERRAIN_TYPES.shallowWater);
+          }
+        }
+      }
+    }
+  }
+  
+  log('Water seeps through the walls...', 'info');
+}
+
+function generateLavaChamber() {
+  const room = dungeon.rooms[dungeon.rooms.length - 1];
+  if (!room) return;
+  
+  // Lava moat around room edges
+  for (let y = room.y; y < room.y + room.h; y++) {
+    for (let x = room.x; x < room.x + room.w; x++) {
+      if (dungeon.tiles[y][x] === '.') {
+        const isEdge = (x === room.x || x === room.x + room.w - 1 ||
+                       y === room.y || y === room.y + room.h - 1);
+        
+        if (isEdge) {
+          setTerrain(x, y, TERRAIN_TYPES.lava);
+        }
+      }
+    }
+  }
+  
+  log('Intense heat radiates from ahead...', 'damage');
+}
+
+function generateLavaRooms(config, lavaEdges) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room || room.isVault) continue;
+    
+    if (lavaEdges) {
+      // Lava moat around edges
+      for (let y = room.y; y < room.y + room.h; y++) {
+        for (let x = room.x; x < room.x + room.w; x++) {
+          if (dungeon.tiles[y][x] === '.') {
+            const isEdge = (x === room.x || x === room.x + room.w - 1 ||
+                           y === room.y || y === room.y + room.h - 1);
+            
+            if (isEdge) {
+              setTerrain(x, y, TERRAIN_TYPES.lava);
+            }
+          }
+        }
       }
     } else {
-      // First level or no stairs
-      selectedType = DUNGEON_TYPES[0]; // Normal
-    }
-    
-    currentDungeonType = selectedType;
-    
-    let tiles = Array(h).fill().map(() => Array(w).fill('#'));
-    let rooms = [];
-    let features = [];
-    let engravings = [];
-    
-    // Apply dungeon type modifiers
-    const mods = selectedType.modifiers;
-    dungeon.isDarkLevel = Math.random() < (mods.darkChance || 0.3);
-    
-    if (dungeon.isDarkLevel) log('It is very dark here...', 'damage');
-    log(`You enter ${selectedType.name}. ${selectedType.description}`, 'info');
-    
-    // Generate rooms with type-specific modifications
-    const roomCount = mods.roomCount || 20;
-    const minRoomSize = mods.largeRooms ? 7 : 5;
-    const maxRoomSize = mods.largeRooms ? 12 : (minRoomSize + 5);
-    
-    for (let i = 0; i < roomCount; i++) {
-        let rw = Math.floor(Math.random() * (maxRoomSize - minRoomSize)) + minRoomSize;
-        let rh = Math.floor(Math.random() * 4) + 4;
-        let rx = Math.floor(Math.random() * (w - rw - 2)) + 1;
-        let ry = Math.floor(Math.random() * (h - rh - 2)) + 1;
-        let overlap = rooms.some(r => rx < r.x + r.w + 1 && rx + rw + 1 > r.x && ry < r.y + r.h + 1 && ry + rh + 1 > r.y);
-        if (!overlap) {
-            for (let y = ry; y < ry + rh; y++) 
-                for (let x = rx; x < rx + rw; x++) 
-                    tiles[y][x] = '.';
-            rooms.push({
-                x: rx, y: ry, w: rw, h: rh, 
-                cx: Math.floor(rx + rw/2), cy: Math.floor(ry + rh/2)
-            });
-        }
-    }
-
-    // Generate vault with type-specific behavior
-    if (Math.random() < 0.15 || mods.guaranteedVault) {
-        generateVault(tiles, rooms);
-    }
-
-    // Connect rooms with corridors
-    rooms.sort((a, b) => a.x - b.x);
-    for (let i = 0; i < rooms.length - 1; i++) {
-        let x1 = rooms[i].cx, y1 = rooms[i].cy;
-        let x2 = rooms[i+1].cx, y2 = rooms[i+1].cy;
-        let hx = x1, hy = y1;
-        while (hx !== x2 || hy !== y2) {
-            if (Math.abs(x2 - hx) > Math.abs(y2 - hy) && hx !== x2) 
-                hx += Math.sign(x2 - hx);
-            else if (hy !== y2) 
-                hy += Math.sign(y2 - hy);
-            
-            if (tiles[hy]?.[hx] === '#') {
-                const doorType = FEATURE_TYPES.find(f => f.type === 'door');
-                const isAdjacentToRoom = tiles[hy-1]?.[hx] === '.' || tiles[hy+1]?.[hx] === '.' || 
-                                         tiles[hy][hx-1] === '.' || tiles[hy][hx+1] === '.';
-                
-                if (doorType && isAdjacentToRoom && Math.random() < doorType.spawnChance) {
-                    tiles[hy][hx] = doorType.glyph;
-                    features.push({
-                        x: hx, y: hy, type: doorType.type,
-                        glyph: doorType.glyph, color: doorType.color,
-                        open: false,
-                        locked: Math.random() < (doorType.lockedChance || 0.1),
-                        discovered: false
-                    });
-                } else {
-                    tiles[hy][hx] = '.';
-                }
+      // Lava pools
+      const centerX = room.cx;
+      const centerY = room.cy;
+      
+      for (let y = room.y; y < room.y + room.h; y++) {
+        for (let x = room.x; x < room.x + room.w; x++) {
+          if (dungeon.tiles[y][x] === '.') {
+            const dist = Math.hypot(x - centerX, y - centerY);
+            if (dist < 2) {
+              setTerrain(x, y, TERRAIN_TYPES.lava);
             }
+          }
         }
+      }
     }
-
-    // Spawn type-specific hazards
-    if (mods.fireHazards) {
-        spawnFireHazards(tiles, rooms, features);
-    }
-    
-    if (mods.waterFeatures) {
-        spawnWaterFeatures(tiles, rooms, features);
-    }
-    
-    if (mods.gasHazards) {
-        spawnGasHazards(tiles, rooms, features);
-    }
-    
-    // Guarantee altar in cathedral
-    if (mods.guaranteedAltar) {
-        const altarType = FEATURE_TYPES.find(f => f.type === 'altar');
-        if (altarType && rooms.length > 0) {
-            const room = rooms[Math.floor(rooms.length / 2)];
-            features.push({
-                x: room.cx,
-                y: room.cy,
-                type: 'altar',
-                glyph: altarType.glyph,
-                color: altarType.color
-            });
-            tiles[room.cy][room.cx] = altarType.glyph;
-        }
-    }
-
-    spawnDungeonFeatures(tiles, rooms, features);
-
-    dungeon.rooms = rooms;
-    dungeon.features = features;
-    dungeon.engravings = engravings;
-    dungeon.type = selectedType;
-    
-    return { tiles, width: w, height: h, rooms, features, engravings };
+  }
+  
+  log('You feel intense heat...', 'damage');
 }
+
+function generateSlimePatches(config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room) continue;
+    
+    const centerX = room.x + Math.floor(Math.random() * room.w);
+    const centerY = room.y + Math.floor(Math.random() * room.h);
+    
+    spreadTerrain(centerX, centerY, TERRAIN_TYPES.slime, 2, 0.6);
+  }
+}
+
+function generateOilPatches(config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room) continue;
+    
+    const centerX = room.x + Math.floor(Math.random() * room.w);
+    const centerY = room.y + Math.floor(Math.random() * room.h);
+    
+    spreadTerrain(centerX, centerY, TERRAIN_TYPES.oil, 1, 0.7);
+  }
+}
+
+function generateGravelCorridors() {
+  // Find corridor tiles (narrow passages between rooms)
+  for (let y = 1; y < HEIGHT - 1; y++) {
+    for (let x = 1; x < WIDTH - 1; x++) {
+      const tile = dungeon.tiles[y][x];
+      if (tile === '.') {
+        // Check if it's a narrow corridor (walls on 2+ sides)
+        const walls = [
+          dungeon.tiles[y-1][x] === '#',
+          dungeon.tiles[y+1][x] === '#',
+          dungeon.tiles[y][x-1] === '#',
+          dungeon.tiles[y][x+1] === '#'
+        ].filter(w => w).length;
+        
+        if (walls >= 2) {
+          const inRoom = dungeon.rooms.some(r => 
+            x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h
+          );
+          
+          if (!inRoom && Math.random() < 0.4) {
+            setTerrain(x, y, TERRAIN_TYPES.gravel);
+          }
+        }
+      }
+    }
+  }
+}
+
+function generateSpiderWebs(count, spiderChance) {
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room) continue;
+    
+    const x = room.x + Math.floor(Math.random() * room.w);
+    const y = room.y + Math.floor(Math.random() * room.h);
+    
+    if (dungeon.tiles[y][x] === '.' && 
+        !dungeon.features.some(f => f.x === x && f.y === y)) {
+      
+      dungeon.features.push({
+        x, y,
+        type: 'web',
+        glyph: '"',
+        color: '#eee',
+        trapChance: 0.4,
+        paralyzeTurns: 2,
+        breakable: true,
+        hp: 3,
+        maxHp: 3
+      });
+      
+      // Spawn spider nearby based on dungeon type
+      if (Math.random() < spiderChance) {
+        const spiderType = MONSTER_TYPES.find(t => t.name === 'spider');
+        if (spiderType) {
+          const spiderPos = findWalkableAdjacent(x, y) || {x, y};
+          monsters.push({
+            ...spiderType,
+            x: spiderPos.x,
+            y: spiderPos.y,
+            maxHp: spiderType.hp,
+            hp: spiderType.hp,
+            ap: 0,
+            maxAP: spiderType.maxAP || 100,
+            state: 'sleeping',
+            weapon: null,
+            exhaustedTurns: 0,
+            poisonTurns: 0,
+            confusionTurns: 0,
+            speedTurns: 0,
+            strengthTurns: 0,
+            burnTurns: 0,
+            paralyzedTurns: 0,
+            intrinsics: spiderType.intrinsics ? {...spiderType.intrinsics} : {}
+          });
+        }
+      }
+    }
+  }
+}
+
+function spawnLiquidPools(poolType, config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  const featureType = LIQUID_FEATURE_TYPES.find(f => f.type === poolType);
+  
+  if (!featureType) return;
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room || room.isVault) continue;
+    
+    const pos = findWalkable(room);
+    
+    dungeon.features.push({
+      x: pos.x,
+      y: pos.y,
+      type: featureType.type,
+      glyph: featureType.glyph,
+      color: featureType.color,
+      liquidType: featureType.liquidType,
+      damage: featureType.damage,
+      canDrink: featureType.canDrink,
+      canDip: featureType.canDip,
+      corrosive: featureType.corrosive,
+      flammable: featureType.flammable
+    });
+  }
+}
+
+function spawnWaterBarrels(config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room) continue;
+    
+    const pos = findWalkable(room);
+    const waterBarrel = LIQUID_ENVIRONMENTAL_TYPES.find(t => t.name === 'water barrel');
+    
+    if (waterBarrel && !environmentals.some(e => e.x === pos.x && e.y === pos.y)) {
+      environmentals.push({
+        ...waterBarrel,
+        x: pos.x,
+        y: pos.y,
+        hp: waterBarrel.hp,
+        maxHp: waterBarrel.maxHp,
+        isOpen: false
+      });
+    }
+  }
+}
+
+function spawnOilBarrels(config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room) continue;
+    
+    const pos = findWalkable(room);
+    const oilBarrel = LIQUID_ENVIRONMENTAL_TYPES.find(t => t.name === 'oil barrel');
+    
+    if (oilBarrel && !environmentals.some(e => e.x === pos.x && e.y === pos.y)) {
+      environmentals.push({
+        ...oilBarrel,
+        x: pos.x,
+        y: pos.y,
+        hp: oilBarrel.hp,
+        maxHp: oilBarrel.maxHp
+      });
+    }
+  }
+}
+
+function spawnAcidJars(config) {
+  if (!config) return;
+  
+  const count = rollDice(1, config.max - config.min + 1, config.min - 1);
+  
+  for (let i = 0; i < count; i++) {
+    const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
+    if (!room) continue;
+    
+    const pos = findWalkable(room);
+    const acidJar = LIQUID_ENVIRONMENTAL_TYPES.find(t => t.name === 'acid jar');
+    
+    if (acidJar && !environmentals.some(e => e.x === pos.x && e.y === pos.y)) {
+      environmentals.push({
+        ...acidJar,
+        x: pos.x,
+        y: pos.y,
+        hp: acidJar.hp,
+        maxHp: acidJar.maxHp
+      });
+    }
+  }
+}
+
 
 function selectWeightedDungeonType() {
     const totalWeight = DUNGEON_TYPES.reduce((sum, t) => sum + t.weight, 0);
@@ -3921,7 +4947,6 @@ intrinsics: type.intrinsics ? {
 }
 }
 
-
 function handleSpecialBehavior(monster, canSeePlayer, distToPlayer) {
 // ERRATIC MOVEMENT
 if (monster.behavior === 'erratic' && Math.random() < 0.5) {
@@ -4182,7 +5207,6 @@ monster.state = 'wandering';
 }
 }
 
-
 function handleFleeingBehavior(monster) {
 const dx = Math.sign(monster.x - player.x);
 const dy = Math.sign(monster.y - player.y);
@@ -4429,6 +5453,13 @@ computeFOV(player.x, player.y, getVisionRadius());
 updateStats();
 needsRedraw = true;
 saveGame(false);
+console.log('=== TERRAIN SYSTEM CHECK ===');
+console.log('TERRAIN_TYPES defined:', typeof TERRAIN_TYPES !== 'undefined');
+console.log('getTerrain function:', typeof getTerrain === 'function');
+console.log('Terrain map initialized:', dungeon.terrainMap !== undefined);
+console.log('Ice environmental types:', ICE_ENVIRONMENTAL_TYPES.length);
+console.log('Liquid environmental types:', LIQUID_ENVIRONMENTAL_TYPES.length);
+console.log('================================');
 }
 
 function getPlayerDR() {
@@ -4787,8 +5818,9 @@ function useFeature() {
 const feature = dungeon.features.find(f =>
 f.x === player.x &&
 f.y === player.y &&
-(f.type === 'fountain' || f.type === 'sink' || f.type === 'altar')
-);
+(['fountain', 'sink', 'altar', 'water_pool', 'acid_pool', 'lava_pool', 'oil_pool'].includes(f.type))
+  );
+
 
 if (!feature) {
 log('There is nothing to use here.', 'info');
@@ -4803,10 +5835,39 @@ return useSink();
 case 'altar':
 log('Use the Pray action at altars.', 'info');
 return false;
-default:
-log('You cannot use that.', 'info');
-return false;
+case 'water_pool':
+      return useLiquidPool(feature);
+    case 'acid_pool':
+    case 'lava_pool':
+    case 'oil_pool':
+      log(`You can't safely use the ${feature.liquidType} pool!`, 'damage');
+      return false;
+    default:
+      log('You cannot use that.', 'info');
+      return false;
 }
+}
+
+function useLiquidPool(pool) {
+  if (!safeSpendAP(50, 'use pool', true)) return false;
+  
+  if (pool.liquidType === 'water' && pool.canDrink) {
+    const roll = Math.random();
+    
+    if (roll < 0.4) {
+      const healAmount = rollDice(1, 6, 2);
+      player.hp = Math.min(player.maxHp, player.hp + healAmount);
+      log('You drink from the pool. Refreshing!', 'pickup');
+    } else if (roll < 0.6) {
+      player.poisonTurns += 3;
+      log('The water tastes foul! You feel sick.', 'damage');
+    } else {
+      log('The water tastes ordinary.', 'info');
+    }
+  }
+  
+  processTurn();
+  return true;
 }
 
 function useFountain() {
@@ -5593,6 +6654,7 @@ actionName = arg2 || 'Action';
 allowDebt = arg3 !== undefined ? arg3: true;
 }
 
+
 let effectiveRegenRate = entity.apRegen || 100;
 
 if (entity.exhaustedTurns && entity.exhaustedTurns > 0) {
@@ -5631,6 +6693,10 @@ return true;
 }
 
 function regenerateAP() {
+if (!Number.isFinite(player.ap)) player.ap = player.maxAP || 100;
+if (!Number.isFinite(player.maxAP)) player.maxAP = 100;
+if (!Number.isFinite(player.apRegen)) player.apRegen = 100;
+
   if (player.ap < player.maxAP) {
     let regenAmount = player.apRegen || 100;
 
@@ -5641,7 +6707,10 @@ function regenerateAP() {
     if (player.exhaustedTurns > 0) {
       regenAmount = Math.floor(regenAmount * 0.5);
     }
-
+    
+    if (player.turnsOfWait == 0) {
+      player.AP = player.maxAP
+    }
     player.ap = Math.min(player.ap + regenAmount, player.maxAP);
   }
 
@@ -5797,6 +6866,99 @@ function applyPlayerStatusEffects() {
       }
     }
   });
+
+  applyTerrainStatusEffects();
+}
+
+function applyTerrainStatusEffects() {
+  const terrain = getTerrain(player.x, player.y);
+  if (!terrain) return;
+  
+  // DAMAGE PER TURN
+  applyTerrainDamage(player, terrain);
+  
+  // EXTINGUISH FIRE
+  if (terrain.extinguishesFire && player.burnTurns > 0) {
+    player.burnTurns = 0;
+    log('The water extinguishes the flames!', 'pickup');
+  }
+  
+  // CORROSION
+  if (terrain.corrosion && Math.random() < terrain.corrosion) {
+    if (player.armor && player.armor.defense > 0) {
+      player.armor.defense--;
+      log('Your armor corrodes!', 'damage');
+      updateStats();
+    } else if (player.weapon && player.weapon.damage > 1) {
+      player.weapon.damage--;
+      log('Your weapon corrodes!', 'damage');
+      updateStats();
+    }
+  }
+  
+  // DROWNING (deep water without swim)
+  if (terrain.drown && !player.canSwim) {
+    takeDamage(terrain.drown);
+    log('You are drowning!', 'damage');
+  }
+  
+  // OIL IGNITION
+  if (terrain.name === 'oil slick' && terrain.flammable) {
+    // Check if player is on fire or adjacent to fire
+    if (player.burnTurns > 0) {
+      log('The oil ignites from your burning body!', 'damage');
+      igniteOilTerrain(player.x, player.y);
+    } else {
+      // Check adjacent tiles for fire
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const fire = dungeon.features.find(f => 
+            f.x === player.x + dx && 
+            f.y === player.y + dy && 
+            f.type === 'fire'
+          );
+          if (fire) {
+            log('The oil catches fire!', 'damage');
+            igniteOilTerrain(player.x, player.y);
+            return;
+          }
+        }
+      }
+    }
+  }
+}
+
+function igniteOilTerrain(x, y) {
+  // Convert oil terrain to fire
+  clearTerrain(x, y);
+  
+  dungeon.features.push({
+    x, y,
+    type: 'fire',
+    glyph: '}',
+    color: '#f80',
+    damage: 3,
+    spreadChance: 0.25,
+    duration: rollDice(2, 4, 5)
+  });
+  
+  dungeon.tiles[y][x] = '}';
+  
+  // Spread fire to adjacent oil
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      const adjacentTerrain = getTerrain(nx, ny);
+      
+      if (adjacentTerrain?.name === 'oil slick' && Math.random() < 0.6) {
+        setTimeout(() => igniteOilTerrain(nx, ny), 100);
+      }
+    }
+  }
+  
+  needsRedraw = true;
 }
 
 // This handles monster and pet status effects
@@ -7420,191 +8582,284 @@ return false;
 }
 
 function movePlayer(dx, dy) {
-// Look / aim mode
-if (player.isLooking) {
-moveLookCursor(dx, dy);
-updateActivateButton();
-return;
-}
-
-// Paralyzed
-if (player.paralyzedTurns > 0) {
-log('You are paralyzed!', 'damage');
-processTurn();
-return;
-}
-
-// Not enough AP
-if (player.ap < AP_COSTS.MOVE) {
-log('Not enough AP to move!', 'damage');
-return;
-}
-
-// Calculate new position
-let newX = player.x + dx;
-let newY = player.y + dy;
-
-// Confusion
-if (player.confusionTurns > 0) {
-newX = player.x + Math.floor(Math.random() * 3) - 1;
-newY = player.y + Math.floor(Math.random() * 3) - 1;
-}
-
-// Out of bounds
-if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) return;
-
-const targetTile = dungeon.tiles[newY][newX];
-const door = dungeon.features.find(f => f.x === newX && f.y === newY && f.type === 'door');
-
-// Wall
-if (targetTile === '#') {
-log('You bump into the wall.', 'info');
-return;
-}
-
-// Door handling
-if (door && !door.open) {
-if (door.locked) {
-const key = player.inventory.find(i => i.type === 'key');
-if (key) {
-door.locked = false;
-log('You unlock the door.', 'pickup');
-player.inventory.splice(player.inventory.indexOf(key), 1);
-} else {
-log('The door is locked! You try to bash it down.', 'damage');
-if (!safeSpendAP(AP_COSTS.BASH_DOOR, 'bash door', true)) return;
-if (Math.random() < 0.3) {
-door.open = true;
-dungeon.tiles[newY][newX] = '\'';
-log('The door breaks open!', 'pickup');
-} else log('The door holds firm.', 'info');
-processTurn();
-return;
-}
-} else {
-if (!safeSpendAP(AP_COSTS.OPEN_DOOR, 'open door', true)) return;
-door.open = true;
-dungeon.tiles[newY][newX] = '\'';
-log('You open the door.', 'info');
-}
-return;
-}
-
-// Environmental objects - only block if they're barriers/hazards
-const environmental = getEnvironmentalAt(newX, newY);
-if (environmental) {
-  // Containers are walkable - just interact if closed
-  if (environmental.type === 'container') {
-    if (!environmental.isOpen) {
-      // Try to open it
-      handleEnvironmentalInteraction(environmental, 'open');
-      return;
-    }
-    // If already open, walk through it (fall through to normal movement)
-  } 
-  // Hazards damage but don't block
-  else if (environmental.type === 'hazard') {
-    if (environmental.bumpDamage) {
-      takeDamage(environmental.bumpDamage);
-      log(environmental.damageMessage || `You are hurt by the ${environmental.name}!`, 'damage');
-    }
-    // Continue movement anyway
+  // Look / aim mode
+  if (player.isLooking) {
+    moveLookCursor(dx, dy);
+    updateActivateButton();
+    return;
   }
-  // Barriers and explosives block movement
-  else if (environmental.type === 'barrier' || environmental.type === 'explosive') {
-    if (environmental.pushable) {
-      tryPushEnvironmental(environmental);
-      return;
-    } else {
-      log(`You bump into the ${environmental.name}.`, 'info');
-      return;
-    }
+
+  // Paralyzed
+  if (player.paralyzedTurns > 0) {
+    log('You are paralyzed!', 'damage');
+    processTurn();
+    return;
   }
-}
 
-// Monster
-const monster = monsters.find(m => m.x === newX && m.y === newY);
-if (monster) {
-attack(player, monster);
-processTurn();
-return;
-}
+  // Calculate new position
+  let newX = player.x + dx;
+  let newY = player.y + dy;
 
-// Environmental object (attack if breakable)
-const environmentalObj = getEnvironmentalAt(newX, newY);
-if (environmentalObj && environmental.breakable) {
-  attackEnvironmental(environmentalObj);
-  return;
-}
+  // Confusion
+  if (player.confusionTurns > 0) {
+    newX = player.x + Math.floor(Math.random() * 3) - 1;
+    newY = player.y + Math.floor(Math.random() * 3) - 1;
+  }
 
-// Movement (allow AP debt)
-safeSpendAP(AP_COSTS.MOVE, 'move', true); // allowDebt = true
+  // Out of bounds
+  if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) return;
 
-// Apply movement
-player.x = newX;
-player.y = newY;
-player.lookCursor = {
-x: newX,
-y: newY
-};
-
-// Traps
-checkTrap(player.x, player.y);
-
-// Items
-const itemsHere = items.filter(i => i.x === player.x && i.y === player.y);
-if (itemsHere.length > 0) {
-log(`You see here: ${itemsHere.map(getItemDisplayName).join(', ')}.`, 'info');
-}
-
-itemsHere.slice().forEach(item => {
-if (item.isStairs) return;
-if (item.type === 'gold') {
-player.gold += item.value;
-updateScore(item.value);
-log(`You picked up ${item.value} gold.`, 'pickup');
-items = items.filter(i => i !== item);
-} else if (item.type === 'ammo') {
-const existingAmmo = player.inventory.find(i => i.baseName === item.baseName && i.type === 'ammo');
-if (existingAmmo) {
-existingAmmo.count = (existingAmmo.count || 1) + (item.count || 1);
-log(`You picked up ${item.count || 1} ${getItemDisplayName(item)} (total: ${existingAmmo.count}).`, 'pickup');
-items = items.filter(i => i !== item);
-} else if (player.inventory.length < player.inventoryMaxItems) {
-player.inventory.push(item);
-log(`You picked up ${item.count || 1} ${getItemDisplayName(item)}.`, 'pickup');
-items = items.filter(i => i !== item);
-} else {
-log(`Inventory full. You can't pick up the ${getItemDisplayName(item)}.`, 'damage');
-}
-} else if (player.inventory.length < player.inventoryMaxItems) {
-player.inventory.push(item);
-log(`You picked up a ${getItemDisplayName(item)}.`, 'pickup');
-items = items.filter(i => i !== item);
-} else {
-log(`Inventory full. You can't pick up the ${getItemDisplayName(item)}.`, 'damage');
-}
-});
-
-// Shop
-const shopFeature = dungeon.features.find(f => f.type === 'shop' && f.x === player.x && f.y === player.y);
-if (shopFeature) {
-openShop(shopFeature);
-return;
-}
-
-// Enchanter: open the enchanter interface when the player steps on it
-const enchanterFeature = dungeon.features.find(fe =>
-  fe.type === 'enchanter' && fe.x === player.x && fe.y === player.y
-);
-if (enchanterFeature) {
-  openEnchanterShop();
-  return;
-}
+  const targetTile = dungeon.tiles[newY][newX];
   
-// Finish turn
-processTurn();
-updateActivateButton();
+  // === MODIFIED: TERRAIN HANDLING ===
+  const terrain = getTerrain(newX, newY);
+  let apCostPaid = false;
+  
+  if (terrain) {
+    // BLOCKED TERRAIN (deep water, lava, acid)
+    if (terrain.blocks && !player.canSwim && !player.canFly) {
+      log(`You cannot cross the ${terrain.name}!`, 'damage');
+      return;
+    }
+
+    // AP COST MODIFIER
+    const apCost = Math.floor(AP_COSTS.MOVE * (terrain.apMult || 1));
+    if (!safeSpendAP(player, apCost, `move through ${terrain.name}`, true)) return;
+    apCostPaid = true;
+
+    // NOISE ALERT
+    if (terrain.noise) {
+      monsters.forEach(m => {
+        const dist = Math.hypot(m.x - player.x, m.y - player.y);
+        if (dist < 5 && m.state === 'sleeping') {
+          m.state = 'wandering';
+          if (Math.random() < 0.3) log(`Your movement alerts ${m.name}!`, 'info');
+        }
+      });
+    }
+
+    // ICE SLIDE
+    if (terrain.slippery && !player.stunned) {
+      slideOnIce(newX, newY, dx, dy);
+      return;
+    }
+  }
+  
+  // Only spend normal AP cost if we haven't already paid for terrain
+  if (!apCostPaid) {
+    if (!safeSpendAP(player, AP_COSTS.MOVE, 'move', true)) return;
+  }
+
+  // Wall
+  if (targetTile === '#') {
+    log('You bump into the wall.', 'info');
+    return;
+  }
+
+  // Door handling
+  const door = dungeon.features.find(f => f.x === newX && f.y === newY && f.type === 'door');
+  if (door && !door.open) {
+    if (door.locked) {
+      const key = player.inventory.find(i => i.type === 'key');
+      if (key) {
+        door.locked = false;
+        log('You unlock the door.', 'pickup');
+        player.inventory.splice(player.inventory.indexOf(key), 1);
+      } else {
+        log('The door is locked! You try to bash it down.', 'damage');
+        if (!safeSpendAP(AP_COSTS.BASH_DOOR, 'bash door', true)) return;
+        if (Math.random() < 0.3) {
+          door.open = true;
+          dungeon.tiles[newY][newX] = '\'';
+          log('The door breaks open!', 'pickup');
+        } else log('The door holds firm.', 'info');
+        processTurn();
+        return;
+      }
+    } else {
+      if (!safeSpendAP(AP_COSTS.OPEN_DOOR, 'open door', true)) return;
+      door.open = true;
+      dungeon.tiles[newY][newX] = '\'';
+      log('You open the door.', 'info');
+    }
+    return;
+  }
+
+  // === MODIFIED: UNIFIED ENVIRONMENTAL INTERACTION ===
+  const environmental = getEnvironmentalAt(newX, newY);
+  if (environmental) {
+    const blocked = handleEnvironmentalInteraction(environmental, 'bump');
+    if (blocked) return;
+  }
+
+  // Monster
+  const monster = monsters.find(m => m.x === newX && m.y === newY);
+  if (monster) {
+    attack(player, monster);
+    processTurn();
+    return;
+  }
+
+  // === NEW: WEB FEATURE CHECK ===
+  const webFeature = dungeon.features.find(f => 
+    f.x === newX && f.y === newY && f.type === 'web'
+  );
+  if (webFeature && Math.random() < (webFeature.trapChance || 0.4)) {
+    player.paralyzedTurns += webFeature.paralyzeTurns || 2;
+    log('You are caught in the sticky web!', 'damage');
+    
+    // Break web with high strength or after struggling
+    if (player.strengthTurns > 0 || Math.random() < 0.3) {
+      dungeon.features = dungeon.features.filter(f => f !== webFeature);
+      log('You tear through the web!', 'pickup');
+    }
+  }
+
+  // Apply movement
+  player.x = newX;
+  player.y = newY;
+  player.lookCursor = { x: newX, y: newY };
+
+  // Traps
+  checkTrap(player.x, player.y);
+
+  // === MODIFIED: UNIFIED ITEM PICKUP ===
+  autoPickupItems();
+
+  // Shop
+  const shopFeature = dungeon.features.find(f => f.type === 'shop' && f.x === player.x && f.y === player.y);
+  if (shopFeature) {
+    openShop(shopFeature);
+    return;
+  }
+
+  // Enchanter
+  const enchanterFeature = dungeon.features.find(fe =>
+    fe.type === 'enchanter' && fe.x === player.x && fe.y === player.y
+  );
+  if (enchanterFeature) {
+    openEnchanterShop();
+    return;
+  }
+  
+  // === NEW: LIQUID POOL FEATURES ===
+  const poolFeature = dungeon.features.find(f => 
+    f.x === player.x && f.y === player.y && 
+    ['water_pool', 'acid_pool', 'lava_pool', 'oil_pool'].includes(f.type)
+  );
+  if (poolFeature && Math.random() < 0.3) {
+    log(`You step into the ${poolFeature.liquidType} pool!`, 'info');
+  }
+  
+  // Finish turn
+  processTurn();
+  updateActivateButton();
+}
+
+function slideOnIce(startX, startY, dx, dy) {
+  player.x = startX;
+  player.y = startY;
+  
+  log('You slip on the ice!', 'info');
+  
+  let slideDist = 0;
+  const maxSlide = 5;
+  
+  while (slideDist < maxSlide) {
+    const nextX = player.x + dx;
+    const nextY = player.y + dy;
+    
+    // Hit wall or door
+    if (!isWalkable(nextX, nextY)) {
+      log('You slam into an obstacle!', 'damage');
+      takeDamage(rollDice(1, 3));
+      break;
+    }
+    
+    // Hit environmental
+    const env = getEnvironmentalAt(nextX, nextY);
+    if (env && !env.transparent) {
+      log(`You crash into the ${env.name}!`, 'damage');
+      takeDamage(rollDice(1, 2));
+      if (env.breakable) {
+        env.hp -= rollDice(1, 4);
+        if (env.hp <= 0) destroyEnvironmental(env);
+      }
+      break;
+    }
+    
+    // Hit monster
+    const monster = monsters.find(m => m.x === nextX && m.y === nextY);
+    if (monster) {
+      log(`You crash into ${monster.name}!`, 'damage');
+      takeDamage(rollDice(1, 2));
+      takeMonsterDamage(monster, rollDice(1, 3), 'physical', player);
+      if (monster.hp <= 0) handleEntityDeath(player, monster);
+      break;
+    }
+    
+    player.x = nextX;
+    player.y = nextY;
+    slideDist++;
+    
+    // Stop if leaving ice
+    const nextTerrain = getTerrain(nextX, nextY);
+    if (!nextTerrain || !nextTerrain.slippery) break;
+  }
+  
+  if (slideDist > 1) log(`You slide ${slideDist} tiles!`, 'info');
+  
+  checkTrap(player.x, player.y);
+  processTurn();
+}
+
+// === NEW: UNIFIED ITEM PICKUP ===
+function autoPickupItems() {
+  const itemsHere = items.filter(i => i.x === player.x && i.y === player.y);
+  
+  if (itemsHere.length > 0) {
+    log(`You see here: ${itemsHere.map(getItemDisplayName).join(', ')}.`, 'info');
+  }
+
+  itemsHere.slice().forEach(item => {
+    if (item.isStairs) return;
+    
+    if (item.type === 'gold') {
+      player.gold += item.value;
+      updateScore(item.value);
+      log(`You picked up ${item.value} gold.`, 'pickup');
+      items = items.filter(i => i !== item);
+      return;
+    }
+    
+    if (item.type === 'ammo') {
+      const existingAmmo = player.inventory.find(i => i.baseName === item.baseName && i.type === 'ammo');
+      if (existingAmmo) {
+        existingAmmo.count = (existingAmmo.count || 1) + (item.count || 1);
+        log(`You picked up ${item.count || 1} ${getItemDisplayName(item)} (total: ${existingAmmo.count}).`, 'pickup');
+        items = items.filter(i => i !== item);
+        autoRefillQuiver();
+      } else if (player.inventory.length < player.inventoryMaxItems) {
+        player.inventory.push(item);
+        log(`You picked up ${item.count || 1} ${getItemDisplayName(item)}.`, 'pickup');
+        items = items.filter(i => i !== item);
+        autoRefillQuiver();
+      } else {
+        log(`Inventory full. You can't pick up the ${getItemDisplayName(item)}.`, 'damage');
+      }
+      return;
+    }
+    
+    if (player.inventory.length < player.inventoryMaxItems) {
+      player.inventory.push(item);
+      log(`You picked up a ${getItemDisplayName(item)}.`, 'pickup');
+      items = items.filter(i => i !== item);
+    } else {
+      log(`Inventory full. You can't pick up the ${getItemDisplayName(item)}.`, 'damage');
+    }
+  });
+  
+  updateStats();
 }
 
 function moveLookCursor(dx, dy) {
@@ -7683,7 +8938,7 @@ const partialWand = wands.find(i => i.charges > 0 && i.charges < 5);
 
 if (depletedWand || partialWand) {
 const targetWand = depletedWand || partialWand;
-const apCost = 200;
+const apCost = 100;
 
 if (player.ap >= apCost) {
 player.ap -= apCost;
@@ -7915,18 +9170,17 @@ items.push({
 }
 
 function processTrapCadence(trap) {
-if (trap.apRegen == null) return;
-
-if ((trap.ap || 0) < AP_COSTS.THROW) return;
+  
+if (trap.type === 'static' || trap.ap < AP_COSTS.THROW) return;
 
 let ammo = null;
 let maxRange = 0;
-if (trap.hasBoulder) {
+if (trap.hasBoulder && trap.AP === 100) {
 ammo = {
 ...ENEMY_ITEMS.boulder
 };
 maxRange = 8;
-} else if (trap.hasDart) {
+} else if (trap.hasDart && trap.ap === 100) {
 ammo = {
 ...ENEMY_ITEMS.dart
 };
@@ -8341,6 +9595,7 @@ petAction(p);
 traps.forEach(t => processTrapCadence(t));
 
 applyMonsterStatusEffects();
+applyMonsterTerrainEffects();
 
 computeFOV(player.x,
 player.y,
@@ -8354,6 +9609,41 @@ showRestartModal();
 }
 
 needsRedraw = true;
+}
+
+function applyMonsterTerrainEffects() {
+  monsters.forEach(m => {
+    const terrain = getTerrain(m.x, m.y);
+    if (!terrain) return;
+    
+    // Lava/acid damage
+    applyTerrainDamage(m, terrain);
+    
+    // Drowning
+    if (terrain.drown && !m.intrinsics?.swimming) {
+      m.hp -= terrain.drown;
+      if (m.hp <= 0) {
+        log(`${m.name} drowns in the ${terrain.name}!`, 'death');
+        handleEntityDeath(player, m);
+      }
+    }
+  });
+  
+  // Pets too
+  pets.forEach(p => {
+    const terrain = getTerrain(p.x, p.y);
+    if (!terrain) return;
+    
+    applyTerrainDamage(p, terrain);
+    
+    if (terrain.drown) {
+      p.hp -= terrain.drown;
+      if (p.hp <= 0) {
+        log(`Your ${p.name} drowns in the ${terrain.name}!`, 'death');
+        handleEntityDeath(player, p);
+      }
+    }
+  });
 }
 
 function highlightEspTile(viewX, viewY, monster) {
@@ -8423,6 +9713,50 @@ tileColor = isVisible ? '#ff0': '#550';
 }
 ctx.fillStyle = tileColor;
 ctx.fillText(tileChar, viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE);
+
+if (dungeon.terrainMap) {
+    for (let viewY = 0; viewY < getViewHeight(); viewY++) {
+      for (let viewX = 0; viewX < getViewWidth(); viewX++) {
+        const mapX = offsetX + viewX;
+        const mapY = offsetY + viewY;
+        
+        if (mapX >= WIDTH || mapY >= HEIGHT) continue;
+        if (!visible[mapY][mapX] && !explored[mapY][mapX]) continue;
+        
+        const terrain = getTerrain(mapX, mapY);
+        if (terrain) {
+          ctx.fillStyle = visible[mapY][mapX] ? terrain.color : dimColor(terrain.color);
+          ctx.fillText(terrain.glyph, viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE);
+          
+          // Add glow for lava
+          if (terrain.lights && visible[mapY][mapX]) {
+            ctx.save();
+            ctx.shadowColor = terrain.color;
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = terrain.color;
+            ctx.fillText(terrain.glyph, viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE);
+            ctx.restore();
+          }
+        }
+      }
+    }
+  }
+  
+  // === NEW: RENDER WEB FEATURES ===
+  dungeon.features.forEach(f => {
+    if (f.type === 'web' && 
+        f.x >= offsetX && f.x < offsetX + getViewWidth() &&
+        f.y >= offsetY && f.y < offsetY + getViewHeight()) {
+      
+      const viewX = f.x - offsetX;
+      const viewY = f.y - offsetY;
+      
+      if (visible[f.y][f.x]) {
+        ctx.fillStyle = f.color;
+        ctx.fillText(f.glyph, viewX * TILE_SIZE, (viewY + 1) * TILE_SIZE);
+      }
+    }
+  });
 
 if (shop && !shop.shopkeeperAngry) {
 ctx.fillStyle = isVisible ? shop.color: '#550';
@@ -10460,14 +11794,20 @@ function executeRangedTarget(mon = target, isAuto = false) {
 function spawnEnvironmentals(count) {
   environmentals = [];
   
-  const validTypes = ENVIRONMENTAL_TYPES.filter(t => t.depth <= dungeonLevel);
+  const allTypes = [
+    ...ENVIRONMENTAL_TYPES,
+    ...LIQUID_ENVIRONMENTAL_TYPES,
+    ...ICE_ENVIRONMENTAL_TYPES
+  ];
+  
+  const validTypes = allTypes.filter(t => t.depth <= dungeonLevel);
   
   for (let i = 0; i < count; i++) {
     const type = validTypes[Math.floor(Math.random() * validTypes.length)];
     const room = dungeon.rooms[Math.floor(Math.random() * dungeon.rooms.length)];
     if (!room || room.isVault) continue;
     
-    // Special spawning patterns based on type
+    // Special spawning patterns
     if (type.name === 'thorny vines') {
       spawnThornyCorridor(type);
     } else if (type.name === 'bookshelf') {
@@ -10479,7 +11819,7 @@ function spawnEnvironmentals(count) {
     } else if (type.name === 'explosive barrel') {
       spawnExplosiveBarrel(room, type);
     } else {
-      // Single spawn for chests and other containers
+      // Single spawn
       const pos = findWalkable(room);
       environmentals.push({
         ...type,
@@ -10745,21 +12085,35 @@ function getEnvironmentalAt(x, y) {
 
 function handleEnvironmentalInteraction(env, action = 'bump') {
   if (action === 'bump') {
-    // HAZARDS - damage on bump
+    // CONTAINERS - try to open or allow passage if open
+    if (env.type === 'container') {
+      if (!env.isOpen) {
+        openContainer(env);
+        return true; // Blocks movement
+      }
+      // Already open - can walk through
+      return false;
+    }
+    
+    // HAZARDS - damage on bump, but don't block
     if (env.type === 'hazard' && env.bumpDamage) {
       takeDamage(env.bumpDamage);
       log(env.damageMessage || `You are hurt by the ${env.name}!`, 'damage');
-      return true;
+      return false; // Doesn't block movement
     }
     
-    // PUSHABLE - try to push
+    // PUSHABLES - try to push
     if (env.pushable) {
       return tryPushEnvironmental(env);
     }
     
-    // Otherwise just block movement
-    log(`You bump into the ${env.name}.`, 'info');
-    return false;
+    // BARRIERS - just block
+    if (env.type === 'barrier' || env.type === 'explosive' || env.type === 'ice_block') {
+      log(`You bump into the ${env.name}.`, 'info');
+      return true; // Blocks movement
+    }
+    
+    return false; // Doesn't block
   }
   
   if (action === 'open') {
@@ -10792,58 +12146,161 @@ function handleEnvironmentalInteraction(env, action = 'bump') {
   if (action === 'attack') {
     return attackEnvironmental(env);
   }
+  
+  return false;
 }
 
 function tryPushEnvironmental(env) {
   const dx = Math.sign(env.x - player.x);
   const dy = Math.sign(env.y - player.y);
   
-  const newX = env.x + dx;
-  const newY = env.y + dy;
+  let slideMultiplier = 1;
   
-  // Check if destination is valid
-  if (newX < 0 || newX >= WIDTH || newY < 0 || newY >= HEIGHT) {
-    log(`You can't push the ${env.name} that way.`, 'info');
-    return false;
+  // Ice blocks slide farther on their own
+  if (env.slideMultiplier) {
+    slideMultiplier = env.slideMultiplier;
   }
   
-  const targetTile = dungeon.tiles[newY][newX];
-  const doorAtTarget = dungeon.features.find(f => f.x === newX && f.y === newY && f.type === 'door');
-  const blockedByMonster = monsters.some(m => m.x === newX && m.y === newY);
-  const blockedByEnv = environmentals.some(e => e.x === newX && e.y === newY);
+  // === NEW: Check terrain for extra sliding ===
+  const currentTerrain = getTerrain(env.x, env.y);
+  if (currentTerrain?.slidePushMultiplier) {
+    slideMultiplier *= currentTerrain.slidePushMultiplier;
+  }
   
-  // Push into wall or closed door = break
-  if (targetTile === '#' || (doorAtTarget && !doorAtTarget.open)) {
-    if (env.breakable) {
-      log(`The ${env.name} shatters against the ${doorAtTarget ? 'door' : 'wall'}!`, 'damage');
-      
-      // If it's an explosive barrel, damage the door
-      if (env.type === 'explosive' && doorAtTarget) {
-        log('The explosion blasts the door open!', 'pickup');
-        doorAtTarget.open = true;
-        doorAtTarget.locked = false;
-        dungeon.tiles[newY][newX] = '\'';
-        needsRedraw = true;
+  let finalX = env.x;
+  let finalY = env.y;
+  let slideDist = 0;
+  
+  for (let i = 0; i < Math.floor(slideMultiplier); i++) {
+    const nextX = finalX + dx;
+    const nextY = finalY + dy;
+    
+    // Out of bounds
+    if (nextX < 0 || nextX >= WIDTH || nextY < 0 || nextY >= HEIGHT) {
+      if (env.breakable) {
+        log(`The ${env.name} crashes into the wall!`, 'damage');
+        destroyEnvironmental(env);
+        return true;
       }
-      
+      break;
+    }
+    
+    // === NEW: Check terrain at destination ===
+    const terrain = getTerrain(nextX, nextY);
+    
+    // Melts in lava
+    if (terrain?.name === 'lava' && env.meltsInFire) {
+      log(`The ${env.name} melts in the lava!`, 'damage');
       destroyEnvironmental(env);
       return true;
-    } else {
-      log(`You can't push the ${env.name} into the ${doorAtTarget ? 'door' : 'wall'}.`, 'info');
-      return false;
+    }
+    
+    // Stops in deep liquid
+    if (terrain && (terrain.blocks || terrain.name === 'lava' || terrain.name === 'acid')) {
+      log(`The ${env.name} sinks into the ${terrain.name}!`, 'info');
+      if (env.breakable && Math.random() < 0.5) {
+        destroyEnvironmental(env);
+        return true;
+      }
+      break;
+    }
+    
+    // Check collision with wall/door
+    const targetTile = dungeon.tiles[nextY][nextX];
+    const door = dungeon.features.find(f => f.x === nextX && f.y === nextY && f.type === 'door');
+    
+    if (targetTile === '#' || (door && !door.open)) {
+      if (env.breakable) {
+        log(`The ${env.name} shatters against the ${door ? 'door' : 'wall'}!`, 'damage');
+        
+        // Explosive barrel breaks door
+        if (env.type === 'explosive' && door) {
+          log('The explosion blasts the door open!', 'pickup');
+          door.open = true;
+          door.locked = false;
+          dungeon.tiles[nextY][nextX] = '\'';
+          needsRedraw = true;
+        }
+        
+        destroyEnvironmental(env);
+        return true;
+      } else {
+        log(`You can't push the ${env.name} into the ${door ? 'door' : 'wall'}.`, 'info');
+        return false;
+      }
+    }
+    
+    // Check collision with monster
+    const monster = monsters.find(m => m.x === nextX && m.y === nextY);
+    if (monster) {
+      const damage = rollDice(2, 4);
+      takeMonsterDamage(monster, damage, 'physical', player);
+      log(`The ${env.name} crushes ${monster.name} for ${damage} damage!`, 'damage');
+      
+      if (monster.hp <= 0) {
+        handleEntityDeath(player, monster);
+      }
+      
+      if (env.breakable && Math.random() < 0.4) {
+        log(`The ${env.name} breaks!`, 'damage');
+        destroyEnvironmental(env);
+        return true;
+      }
+      break;
+    }
+    
+    // Check collision with another environmental
+    const otherEnv = environmentals.find(e => e.x === nextX && e.y === nextY && e !== env);
+    if (otherEnv) {
+      log(`The ${env.name} crashes into the ${otherEnv.name}!`, 'damage');
+      
+      if (env.breakable) {
+        destroyEnvironmental(env);
+      }
+      if (otherEnv.breakable) {
+        otherEnv.hp -= rollDice(2, 6);
+        if (otherEnv.hp <= 0) destroyEnvironmental(otherEnv);
+      }
+      return true;
+    }
+    
+    // Check if destination is walkable
+    if (!isWalkable(nextX, nextY)) {
+      if (env.breakable) {
+        log(`The ${env.name} shatters!`, 'damage');
+        destroyEnvironmental(env);
+        return true;
+      } else {
+        log(`You can't push the ${env.name} there.`, 'info');
+        return false;
+      }
+    }
+    
+    // Move to next position
+    finalX = nextX;
+    finalY = nextY;
+    slideDist++;
+    
+    // === NEW: Check if still on slippery terrain ===
+    const nextTerrain = getTerrain(finalX, finalY);
+    if (!nextTerrain || !nextTerrain.slidePushMultiplier) {
+      break; // Stop sliding if we leave ice
     }
   }
   
-  // Can't push into occupied space
-  if (blockedByMonster || blockedByEnv || !isWalkable(newX, newY)) {
-    log(`You can't push the ${env.name} there.`, 'info');
+  // Apply final position
+  env.x = finalX;
+  env.y = finalY;
+  
+  // Feedback messages
+  if (slideDist > 1) {
+    log(`The ${env.name} slides ${slideDist} tiles!`, 'info');
+  } else if (slideDist === 1) {
+    log(`You push the ${env.name}.`, 'info');
+  } else {
+    log(`The ${env.name} won't budge!`, 'info');
     return false;
   }
-  
-  // Successfully push
-  env.x = newX;
-  env.y = newY;
-  log(`You push the ${env.name}.`, 'info');
   
   player.ap -= AP_COSTS.MOVE;
   processTurn();
@@ -10982,6 +12439,54 @@ function destroyEnvironmental(env) {
             }
           }
         });
+        
+        // Webs burn
+        dungeon.features = dungeon.features.filter(f => {
+          if (f.x === x && f.y === y && f.type === 'web') {
+            log('The web burns away!', 'info');
+            return false;
+          }
+          return true;
+        });
+      }
+    }
+  }
+  
+  // === NEW: LIQUID SPILL ===
+  if (env.spillsLiquid) {
+    const radius = env.spillRadius || 1;
+    const terrainType = TERRAIN_TYPES[env.spillsLiquid];
+    
+    if (terrainType) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (Math.hypot(dx, dy) > radius) continue;
+          
+          const x = env.x + dx;
+          const y = env.y + dy;
+          
+          if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT && 
+              dungeon.tiles[y][x] === '.') {
+            setTerrain(x, y, terrainType);
+          }
+        }
+      }
+      
+      log(`${env.name} spills ${env.spillsLiquid} everywhere!`, 'damage');
+      
+      // Water extinguishes nearby fire
+      if (env.extinguishesNearbyFire) {
+        dungeon.features = dungeon.features.filter(f => {
+          if (f.type === 'fire') {
+            const dist = Math.hypot(f.x - env.x, f.y - env.y);
+            if (dist <= radius + 1) {
+              log('The fire is extinguished!', 'pickup');
+              dungeon.tiles[f.y][f.x] = '.';
+              return false;
+            }
+          }
+          return true;
+        });
       }
     }
   }
@@ -11099,4 +12604,4 @@ invHeader.textContent = invCollapsed ? 'Inventory ▲': 'Inventory ▼';
 });
 </script>
 </body>
-</html>
+  </html>
