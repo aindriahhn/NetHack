@@ -7,7 +7,12 @@ an original game.
 
 ## Canonical build
 
-**`NHMRP_1.07__yhprum_1.html` is the canonical build.**
+**`NHMRP_1.08__zoom_1.html` is the canonical build.**
+
+- Zoom: a 🔍 Zoom button beside Sprites, cycling 1x, 2x, 3x.
+  The view shrinks from 40x30 to 20x15 to 13x10, so tiles grow
+  and the camera, tap-to-move, and minimap all follow the
+  current view. Zoom resets to 1x on reload.
 
 - Renamed the win item: the Amulet of Yendor is now the Amulet
   of Yhprum — same backwards-name joke, now Murphy backwards
@@ -46,7 +51,8 @@ an original game.
 
 ## Other files in this repo (archived, not canonical)
 
-- `NHMRP_1.06__nhmrp_1.html` — the previous canonical build.
+- `NHMRP_1.07__yhprum_1.html` — the previous canonical build.
+- `NHMRP_1.06__nhmrp_1.html` — the build before that.
 - `NHMRP_1.05__sprites_1.html` — the build before that.
 - `NHMRP_1.03__magic_1.html` — the build before that.
 - `NHMRP_1.02__yendor_1.html` — the build before that.
@@ -60,7 +66,7 @@ as a sibling build, with the originals left untouched.
 
 ## Playing
 
-Open `NHMRP_1.07__yhprum_1.html` in a browser, tap New Game, pick a role,
+Open `NHMRP_1.08__zoom_1.html` in a browser, tap New Game, pick a role,
 and use the on-screen controls or tap the canvas to move. Keyboard play
 works too. Progress saves to the browser's local storage under the
 game's own save key.
