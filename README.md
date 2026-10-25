@@ -7,14 +7,19 @@ an original game.
 
 ## Canonical build
 
-**`NHMRP_1.06__nhmrp_1.html` is the canonical build.**
+**`NHMRP_1.07__yhprum_1.html` is the canonical build.**
+
+- Renamed the win item: the Amulet of Yendor is now the Amulet
+  of Yhprum — same backwards-name joke, now Murphy backwards
+  instead of Rodney backwards. Item name, pickup log, victory
+  text, and internal Yhprum identifiers all changed together.
 
 - Renamed to NHMRP: the title, headings, canvas id, and save key
   now use NHMRP. Saves made under a previous key are migrated
   to `NHMRPSave` on first boot, so old progress carries over;
   future saves use the new key only.
 
-- Descend to depth 10, find the Amulet of Yendor, and climb back out.
+- Descend to depth 10, find the Amulet of Yhprum, and climb back out.
   There are no stairs down past depth 10; once the Amulet is carried,
   stairways up (`<`) appear and climbing from depth 1 wins the game.
 - Creature remains: monsters (except slime) drop remains that can be
@@ -41,7 +46,8 @@ an original game.
 
 ## Other files in this repo (archived, not canonical)
 
-- `NHMRP_1.05__sprites_1.html` — the previous canonical build.
+- `NHMRP_1.06__nhmrp_1.html` — the previous canonical build.
+- `NHMRP_1.05__sprites_1.html` — the build before that.
 - `NHMRP_1.03__magic_1.html` — the build before that.
 - `NHMRP_1.02__yendor_1.html` — the build before that.
 - `NetHack.html` — the earlier 1.01 line.
@@ -54,7 +60,7 @@ as a sibling build, with the originals left untouched.
 
 ## Playing
 
-Open `NHMRP_1.06__nhmrp_1.html` in a browser, tap New Game, pick a role,
+Open `NHMRP_1.07__yhprum_1.html` in a browser, tap New Game, pick a role,
 and use the on-screen controls or tap the canvas to move. Keyboard play
 works too. Progress saves to the browser's local storage under the
 game's own save key.
