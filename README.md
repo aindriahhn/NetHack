@@ -1,12 +1,18 @@
-# NHMRP — Nethack Mobile Restoration Project
+# NHMRP
 
-A single-file, mobile-first roguelike in the shape of NetHack, written in
-plain HTML/JavaScript. Open the game file in a browser — no install, no
-build step. A passion project, not a commercial release.
+A single-file, mobile-first roguelike, written in plain
+HTML/JavaScript. Open the game file in a browser — no install, no
+build step. A passion project, not a commercial release. NHMRP is
+an original game.
 
 ## Canonical build
 
-**`NHMRP_1.05__sprites_1.html` is the canonical build.**
+**`NHMRP_1.06__nhmrp_1.html` is the canonical build.**
+
+- Renamed to NHMRP: the title, headings, canvas id, and save key
+  now use NHMRP. Saves made under a previous key are migrated
+  to `NHMRPSave` on first boot, so old progress carries over;
+  future saves use the new key only.
 
 - Descend to depth 10, find the Amulet of Yendor, and climb back out.
   There are no stairs down past depth 10; once the Amulet is carried,
@@ -35,7 +41,8 @@ build step. A passion project, not a commercial release.
 
 ## Other files in this repo (archived, not canonical)
 
-- `NHMRP_1.03__magic_1.html` — the previous canonical build.
+- `NHMRP_1.05__sprites_1.html` — the previous canonical build.
+- `NHMRP_1.03__magic_1.html` — the build before that.
 - `NHMRP_1.02__yendor_1.html` — the build before that.
 - `NetHack.html` — the earlier 1.01 line.
 - `NHMRP.html` — a divergent branch of the same game, not merged.
@@ -47,7 +54,7 @@ as a sibling build, with the originals left untouched.
 
 ## Playing
 
-Open `NHMRP_1.05__sprites_1.html` in a browser, tap New Game, pick a role,
+Open `NHMRP_1.06__nhmrp_1.html` in a browser, tap New Game, pick a role,
 and use the on-screen controls or tap the canvas to move. Keyboard play
 works too. Progress saves to the browser's local storage under the
 game's own save key.
