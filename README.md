@@ -7,7 +7,24 @@ an original game.
 
 ## Canonical build
 
-**`NHMRP_1.08__zoom_1.html` is the canonical build.**
+**`NHMRP_1.09__ui_1.html` is the canonical build.**
+
+- UI overhaul: two-column controls — the d-pad with Actions,
+  Dunk, Use/Drop, and Use Feature under it on the left; the aim
+  bars (action, Look, Throw, Survey, Zap, Shoot, Use Tool) on the
+  right; no empty gap below the controls.
+- Labels: the look-mode buttons show just the verb — Survey
+  (throw), Zap, Shoot — and the context button shows THROW! /
+  SHOOT! / ZAP! / CAST! / LOOK / Search. The game actions behind
+  the labels are unchanged.
+- Log: tapping the log expands and collapses it; dragging to
+  scroll does not toggle it.
+- Thrown melee weapons use the full melee damage package
+  (Blessed/Cursed, damage-type resists, rage, exhaustion, ring
+  bonus, weapon-mod element effects).
+- Phone bars: full-width horizontal bars with canvas pixel icons,
+  a settings toolbar, collapsible stats with HP/AP bars, and the
+  monster guide collapsed by default.
 
 - Zoom: a 🔍 Zoom button beside Sprites, cycling 1x, 2x, 3x.
   The view shrinks from 40x30 to 20x15 to 13x10, so tiles grow
@@ -51,7 +68,8 @@ an original game.
 
 ## Other files in this repo (archived, not canonical)
 
-- `NHMRP_1.07__yhprum_1.html` — the previous canonical build.
+- `NHMRP_1.08__zoom_1.html` — the previous canonical build.
+- `NHMRP_1.07__yhprum_1.html` — the build before that.
 - `NHMRP_1.06__nhmrp_1.html` — the build before that.
 - `NHMRP_1.05__sprites_1.html` — the build before that.
 - `NHMRP_1.03__magic_1.html` — the build before that.
@@ -66,7 +84,7 @@ as a sibling build, with the originals left untouched.
 
 ## Playing
 
-Open `NHMRP_1.08__zoom_1.html` in a browser, tap New Game, pick a role,
+Open `NHMRP_1.09__ui_1.html` in a browser, tap New Game, pick a role,
 and use the on-screen controls or tap the canvas to move. Keyboard play
 works too. Progress saves to the browser's local storage under the
 game's own save key.
