@@ -1,13 +1,26 @@
 # NHMRP
 
-A single-file, mobile-first roguelike, written in plain
+A single-file roguelike for phone and laptop, written in plain
 HTML/JavaScript. Open the game file in a browser — no install, no
 build step. A passion project, not a commercial release. NHMRP is
 an original game.
 
 ## Canonical build
 
-**`NHMRP_1.09__ui_1.html` is the canonical build.**
+**`NHMRP_1.09_desktop__1.html` is the canonical build — the 1.09
+UI overhaul plus the desktop/laptop layer, in one file.**
+
+- Desktop and laptop, same file: keyboard play — Arrows or WASD
+  to move, Q/E/Z/C for diagonals, Vi keys, period or Space to
+  wait, Enter to activate, X to look, Esc to cancel or close a
+  menu, plus to cycle zoom. Every key reuses an on-screen button,
+  so look mode, aiming, and the context action behave exactly as
+  their clicks do.
+- Wide layout at 900px and up: log in flow at the top, dungeon on
+  the left, stats and controls in a side panel on the right, with
+  a keyboard help line. Below 900px it is the 1.09 phone layout,
+  unchanged, and the keyboard still works there.
+- Game logic is unchanged from 1.09; this is a UI layer only.
 
 - UI overhaul: two-column controls — the d-pad with Actions,
   Dunk, Use/Drop, and Use Feature under it on the left; the aim
@@ -68,7 +81,8 @@ an original game.
 
 ## Other files in this repo (archived, not canonical)
 
-- `NHMRP_1.08__zoom_1.html` — the previous canonical build.
+- `NHMRP_1.09__ui_1.html` — the previous canonical build.
+- `NHMRP_1.08__zoom_1.html` — the build before that.
 - `NHMRP_1.07__yhprum_1.html` — the build before that.
 - `NHMRP_1.06__nhmrp_1.html` — the build before that.
 - `NHMRP_1.05__sprites_1.html` — the build before that.
@@ -84,7 +98,9 @@ as a sibling build, with the originals left untouched.
 
 ## Playing
 
-Open `NHMRP_1.09__ui_1.html` in a browser, tap New Game, pick a role,
+Open `NHMRP_1.09_desktop__1.html` in a browser, tap New Game, pick a role,
 and use the on-screen controls or tap the canvas to move. Keyboard play
-works too. Progress saves to the browser's local storage under the
-game's own save key.
+works on phone and laptop alike: Arrows or WASD, Q/E/Z/C diagonals,
+Vi keys, period or Space to wait, Enter to activate, X to look, Esc
+to cancel or close, plus to cycle zoom. Progress saves to the browser's
+local storage under the game's own save key.
